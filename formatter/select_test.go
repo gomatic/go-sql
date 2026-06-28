@@ -5,6 +5,8 @@ import (
 
 	pg_query "github.com/pganalyze/pg_query_go/v6"
 	"github.com/stretchr/testify/assert"
+
+	"github.com/gomatic/go-sql"
 )
 
 func TestFormatSelectMultiColumn(t *testing.T) {
@@ -94,7 +96,7 @@ func TestFormatJoinTypes(t *testing.T) {
 		"select a from t1 full join t2 on a":  "full join t2",
 	}
 	for query, want := range cases {
-		out, err := New().Format(query)
+		out, err := New().Format(sql.SQL(query))
 		assert.NoError(t, err, query)
 		assert.Contains(t, out, want, query)
 	}

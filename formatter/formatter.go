@@ -47,8 +47,8 @@ func New() Formatter {
 // Format parses query and renders each statement, joining multiple ones with a
 // blank line. A parse failure comes back unwrapped (it already carries
 // [sql.ErrParse]); a statement we can't render yields [ErrUnsupportedStatement].
-func (f Formatter) Format(query string) (string, error) {
-	result, err := sql.Parse(sql.SQL(query))
+func (f Formatter) Format(query sql.SQL) (string, error) {
+	result, err := sql.Parse(query)
 	if err != nil {
 		return "", err
 	}
