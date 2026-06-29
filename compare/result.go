@@ -1,5 +1,10 @@
 package compare
 
+import (
+	"cmp"
+	"slices"
+)
+
 // Result is what you get back from comparing a source script against a target
 // script. Its JSON shape is stable: three statement lists, each under its own
 // lowercase key. A statement that shows up only in the target is Added, one only
@@ -38,13 +43,32 @@ type Diff struct {
 // target side.
 func diffStatements(reg registry, source, target stmtsByID) Result {
 	var result Result
-	for id, src := range source {
-		classifySource(reg, id, src, target, &result)
+	for _, e := range sortedByIndex(source) {
+		classifySource(reg, e.id, e.stmt, target, &result)
 	}
-	for id, tgt := range target {
-		appendIfAdded(id, tgt, source, &result)
+	for _, e := range sortedByIndex(target) {
+		appendIfAdded(e.id, e.stmt, source, &result)
 	}
 	return result
+}
+
+// indexedEntry pairs an identity with its statement for stable iteration.
+type indexedEntry struct {
+	id   identity
+	stmt indexedStatement
+}
+
+// sortedByIndex returns a map's entries ordered by each statement's position in
+// its script, so the Result lists are deterministic rather than map-ordered.
+func sortedByIndex(m stmtsByID) []indexedEntry {
+	entries := make([]indexedEntry, 0, len(m))
+	for id, s := range m {
+		entries = append(entries, indexedEntry{id: id, stmt: s})
+	}
+	slices.SortFunc(entries, func(a, b indexedEntry) int {
+		return cmp.Compare(a.stmt.index, b.stmt.index)
+	})
+	return entries
 }
 
 // classifySource marks a source statement removed when the target doesn't have

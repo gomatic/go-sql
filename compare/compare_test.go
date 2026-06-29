@@ -174,3 +174,19 @@ type sentinelError string
 func (e sentinelError) Error() string { return string(e) }
 
 var _ error = sentinelError("")
+
+func TestCompare_AddedFollowsScriptPositionDeterministically(t *testing.T) {
+	t.Parallel()
+	want, must := assert.New(t), require.New(t)
+
+	// Three tables added in a deliberately non-alphabetical script order. The
+	// Added list must follow script position, not map-iteration order.
+	target := sql.SQL("create table zeta (id int);\ncreate table mid (id int);\ncreate table alpha (id int);")
+
+	result, err := Compare("", target)
+	must.NoError(err)
+	must.Len(result.Added, 3)
+	want.Contains(result.Added[0].Identity, "zeta")
+	want.Contains(result.Added[1].Identity, "mid")
+	want.Contains(result.Added[2].Identity, "alpha")
+}
