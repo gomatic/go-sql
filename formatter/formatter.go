@@ -54,18 +54,28 @@ func (Formatter) Format(query sql.SQL) (string, error) {
 	return strings.Join(formatted, statementSeparator), nil
 }
 
-// formatStatement renders one statement past the verification gate: the
-// canonical deparse when it holds up, and the verbatim source when it can't be
-// proven faithful. An empty statement renders empty.
+// formatStatement renders one statement past the verification gate, best layout
+// first: the house style when it covers the statement, then the canonical
+// deparse, then the verbatim source when neither can be proven faithful. An empty
+// statement renders empty.
 func formatStatement(query sql.SQL, stmt *pg_query.RawStmt) string {
 	if stmt.Stmt == nil {
 		return ""
 	}
-	original := statementSource(query, stmt)
-	if canonical, ok := canonicalStatement(stmt); ok {
-		return chooseFormatted(original, canonical)
+	return chooseFormatted(statementSource(query, stmt), candidates(stmt)...)
+}
+
+// candidates lists the renderings to try, best first: the house style if it
+// covers this statement, then the canonical deparse.
+func candidates(stmt *pg_query.RawStmt) []string {
+	candidates := make([]string, 0, 2)
+	if house, ok := houseStatement(stmt); ok {
+		candidates = append(candidates, house)
 	}
-	return chooseFormatted(original)
+	if canonical, ok := canonicalStatement(stmt); ok {
+		candidates = append(candidates, canonical)
+	}
+	return candidates
 }
 
 // pgSpace is exactly the whitespace PostgreSQL's lexer ignores: space, tab,

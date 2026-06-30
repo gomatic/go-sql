@@ -12,9 +12,11 @@ import (
 
 func TestFormatCanonicalisesWhitespaceAndCase(t *testing.T) {
 	t.Parallel()
+	// Messy whitespace and uppercase collapse to the canonical lowercase house
+	// layout: one clause per line, FROM under SELECT.
 	out, err := New().Format("SELECT   a  FROM t")
 	require.NoError(t, err)
-	assert.Equal(t, "select a from t", out)
+	assert.Equal(t, "select a\n  from t", out)
 }
 
 func TestFormatMultipleStatementsSeparatedBySemicolonAndBlankLine(t *testing.T) {
