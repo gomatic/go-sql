@@ -48,8 +48,11 @@ func normalize(input Body) Body {
 		i, had = processToken(runes, &result, i, had)
 	}
 
-	canonical := strings.TrimSpace(result.String())
-	return Body(strings.TrimSuffix(canonical, ";"))
+	// Strip every trailing semicolon — each a meaningless empty statement — plus
+	// any whitespace around them in one right-trim pass, so the canonical form is
+	// idempotent (";;" settles on "" in a single pass, not "" only after two).
+	canonical := strings.TrimRight(result.String(), "; \t\n\r\f\v")
+	return Body(strings.TrimSpace(canonical))
 }
 
 // processToken consumes the token at i, appends its normalized text to result, and

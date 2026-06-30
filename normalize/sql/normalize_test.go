@@ -42,6 +42,21 @@ func TestNormalize(t *testing.T) {
 			input: SQL("SELECT\n*\nFROM\ntable"),
 			want:  SQL("SELECT * FROM table"),
 		},
+		{
+			// A trailing semicolon padded with a space must canonicalize to "0",
+			// not "0 " (a stray trailing space) — that would make Normalize
+			// non-idempotent on the unparseable fallback path.
+			name:  "trailing semicolon padded with space",
+			input: SQL("0 ;"),
+			want:  SQL("0"),
+		},
+		{
+			// Every trailing semicolon (each a meaningless empty statement) is
+			// stripped in a single pass, not just the last one.
+			name:  "multiple trailing semicolons",
+			input: SQL("0 ;;"),
+			want:  SQL("0"),
+		},
 	}
 
 	for _, tt := range tests {

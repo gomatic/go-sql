@@ -17,11 +17,15 @@ func TestFormatCanonicalisesWhitespaceAndCase(t *testing.T) {
 	assert.Equal(t, "select a from t", out)
 }
 
-func TestFormatMultipleStatementsJoinedByBlankLine(t *testing.T) {
+func TestFormatMultipleStatementsSeparatedBySemicolonAndBlankLine(t *testing.T) {
 	t.Parallel()
 	out, err := New().Format("select 1; select 2")
 	require.NoError(t, err)
-	assert.Equal(t, "select 1\n\nselect 2", out)
+	// The semicolon separator is what keeps the rendering valid SQL: the output
+	// re-parses as the same two statements.
+	assert.Equal(t, "select 1;\n\nselect 2", out)
+	_, err = New().Format(sql.SQL(out))
+	require.NoError(t, err, "formatted multi-statement output must re-parse")
 }
 
 func TestFormatParseErrorWrapsErrParse(t *testing.T) {
@@ -61,6 +65,22 @@ func TestStatementSourceSlicesInteriorStatement(t *testing.T) {
 	tree, err := sql.Parse(query)
 	require.NoError(t, err)
 	assert.Equal(t, "select 2", statementSource(query, tree.Stmts[1]))
+}
+
+func TestFormatPreservesMeaningWithNonASCIIWhitespace(t *testing.T) {
+	t.Parallel()
+	// U+2000 is whitespace to Go but a significant token to pg_query, so
+	// "seleCt  " is a different statement from "seleCt". The verbatim
+	// fallback must keep the U+2000 (trimming only PostgreSQL whitespace) so the
+	// formatter never emits a slice that changed what the statement does.
+	const query sql.SQL = "seleCt \u2000"
+	out, err := New().Format(query)
+	require.NoError(t, err)
+	inFP, err := sql.Fingerprint(query)
+	require.NoError(t, err)
+	outFP, err := sql.Fingerprint(sql.SQL(out))
+	require.NoError(t, err)
+	assert.Equal(t, inFP, outFP, "format must not change the statement's fingerprint")
 }
 
 func TestStatementSourceClampsOverlongLength(t *testing.T) {

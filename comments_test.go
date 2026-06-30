@@ -1,6 +1,7 @@
 package sql_test
 
 import (
+	"errors"
 	"reflect"
 	"testing"
 
@@ -30,7 +31,7 @@ func TestCommentsEmptyWhenNone(t *testing.T) {
 
 func TestCommentsReportsScanFailure(t *testing.T) {
 	_, err := sql.Comments("'unterminated")
-	if err == nil {
-		t.Fatal("want scan error, got nil")
+	if !errors.Is(err, sql.ErrScan) {
+		t.Fatalf("got %v, want ErrScan", err)
 	}
 }

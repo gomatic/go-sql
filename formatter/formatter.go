@@ -29,8 +29,15 @@ func New() Formatter {
 	return Formatter{}
 }
 
-// Format parses query and renders each statement, joining multiple ones with a
-// blank line. A parse failure comes back unwrapped (it already carries
+// statementSeparator joins consecutive statements: a terminating semicolon plus
+// a blank line. The semicolon is what keeps multi-statement output valid SQL —
+// without it `select 1\n\nselect 2` is a syntax error — so the whole rendering
+// re-parses as the same statements and reformatting is idempotent.
+const statementSeparator = ";\n\n"
+
+// Format parses query and renders each statement, separating consecutive ones
+// with a semicolon and a blank line so the whole output re-parses as the same
+// statements. A parse failure comes back unwrapped (it already carries
 // [sql.ErrParse]). No statement kind is ever an error: one that can't be
 // deparsed, or can't be rendered faithfully, falls back to its verbatim source.
 func (Formatter) Format(query sql.SQL) (string, error) {
@@ -44,7 +51,7 @@ func (Formatter) Format(query sql.SQL) (string, error) {
 		formatted = append(formatted, formatStatement(query, stmt))
 	}
 
-	return strings.Join(formatted, "\n\n"), nil
+	return strings.Join(formatted, statementSeparator), nil
 }
 
 // formatStatement renders one statement past the verification gate: the
@@ -61,9 +68,19 @@ func formatStatement(query sql.SQL, stmt *pg_query.RawStmt) string {
 	return chooseFormatted(original)
 }
 
+// pgSpace is exactly the whitespace PostgreSQL's lexer ignores: space, tab,
+// newline, carriage return, form feed, and vertical tab. statementSource trims
+// against this set rather than Go's wider unicode notion ([strings.TrimSpace]),
+// because a character pg_query treats as significant — a non-ASCII space such as
+// U+00A0 or U+2000 is part of the statement, not boundary whitespace — must stay
+// in the verbatim slice. Trimming it with Go's notion would yield a fallback that
+// no longer means the same statement and let the gate emit it, silently changing
+// what the statement does.
+const pgSpace = " \t\n\r\f\v"
+
 // statementSource slices the verbatim source of one statement out of query,
-// dropping the surrounding whitespace and trailing semicolon the boundary
-// carries. It's both the gate's reference and the last-resort output.
+// dropping the surrounding PostgreSQL whitespace and trailing semicolon the
+// boundary carries. It's both the gate's reference and the last-resort output.
 func statementSource(query sql.SQL, stmt *pg_query.RawStmt) string {
 	text := string(query)
 	start := int(stmt.StmtLocation)
@@ -71,5 +88,5 @@ func statementSource(query sql.SQL, stmt *pg_query.RawStmt) string {
 	if stmt.StmtLen == 0 || end > len(text) {
 		end = len(text)
 	}
-	return strings.TrimSpace(strings.TrimSuffix(strings.TrimSpace(text[start:end]), ";"))
+	return strings.Trim(strings.TrimSuffix(strings.Trim(text[start:end], pgSpace), ";"), pgSpace)
 }

@@ -499,6 +499,14 @@ end;`,
 
 		// Edge cases
 		{
+			// Every trailing semicolon (each a meaningless empty statement) is
+			// stripped in one pass; stripping only the last would leave ";" for a
+			// second pass, breaking idempotence.
+			name:  "multiple trailing semicolons collapse fully",
+			input: ";;",
+			want:  "",
+		},
+		{
 			name: "minus operator vs comment",
 			input: `begin
   new.x := a - b; -- This is minus, not comment start

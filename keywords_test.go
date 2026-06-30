@@ -1,6 +1,7 @@
 package sql_test
 
 import (
+	"errors"
 	"testing"
 
 	sql "github.com/gomatic/go-sql"
@@ -48,7 +49,7 @@ func TestLowerKeywordsPreservesDollarQuotedBody(t *testing.T) {
 
 func TestLowerKeywordsReportsScanFailure(t *testing.T) {
 	_, err := sql.LowerKeywords("'unterminated")
-	if err == nil {
-		t.Fatal("want a scan error, got nil")
+	if !errors.Is(err, sql.ErrScan) {
+		t.Fatalf("got %v, want ErrScan", err)
 	}
 }
