@@ -36,7 +36,11 @@ func TestCreateSchema_ASTStructure(t *testing.T) {
 
 	tests := []astTestCase{
 		{name: "simple_schema", sql: `create schema my_schema`, expectedAST: statementData{"schemaname": "my_schema"}},
-		{name: "schema_if_not_exists", sql: `create schema if not exists v1_armada_cell_type`, expectedAST: statementData{"if_not_exists": true, "schemaname": "v1_armada_cell_type"}},
+		{
+			name:        "schema_if_not_exists",
+			sql:         `create schema if not exists v1_armada_cell_type`,
+			expectedAST: statementData{"if_not_exists": true, "schemaname": "v1_armada_cell_type"},
+		},
 	}
 
 	for _, tc := range tests {
@@ -54,7 +58,11 @@ func TestCreateSchemaIdentity(t *testing.T) {
 
 	tests := []identityTestCase{
 		{name: "simple_schema", sql: `create schema my_schema`, expectedIdentity: "create.schema:my_schema"},
-		{name: "schema_if_not_exists", sql: `create schema if not exists v1_armada_cell_type`, expectedIdentity: "create.schema:v1_armada_cell_type"},
+		{
+			name:             "schema_if_not_exists",
+			sql:              `create schema if not exists v1_armada_cell_type`,
+			expectedIdentity: "create.schema:v1_armada_cell_type",
+		},
 	}
 
 	for _, tc := range tests {
@@ -77,8 +85,20 @@ func TestCreateSchemaDiff(t *testing.T) {
 	want, must := assert.New(t), require.New(t)
 
 	tests := []diffTestCase{
-		{name: "identical_schemas", sourceSQL: `create schema my_schema`, targetSQL: `create schema my_schema`, expectEqual: true, expectedDiffs: 0},
-		{name: "different_if_not_exists", sourceSQL: `create schema my_schema`, targetSQL: `create schema if not exists my_schema`, expectEqual: false, expectedDiffs: 1},
+		{
+			name:          "identical_schemas",
+			sourceSQL:     `create schema my_schema`,
+			targetSQL:     `create schema my_schema`,
+			expectEqual:   true,
+			expectedDiffs: 0,
+		},
+		{
+			name:          "different_if_not_exists",
+			sourceSQL:     `create schema my_schema`,
+			targetSQL:     `create schema if not exists my_schema`,
+			expectEqual:   false,
+			expectedDiffs: 1,
+		},
 	}
 
 	for _, tc := range tests {

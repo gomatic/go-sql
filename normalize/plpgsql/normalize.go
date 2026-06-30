@@ -78,7 +78,12 @@ func emit(result *strings.Builder, s string) {
 // scanStructured handles the multi-rune token shapes — dollar quotes, quoted
 // strings, comments. The bool comes back false when none of them apply, so the
 // caller treats the rune as an ordinary character.
-func scanStructured(runes []rune, result *strings.Builder, i runeIndex, had hasWhitespace) (runeIndex, hasWhitespace, bool) {
+func scanStructured(
+	runes []rune,
+	result *strings.Builder,
+	i runeIndex,
+	had hasWhitespace,
+) (runeIndex, hasWhitespace, bool) {
 	idx := int(i)
 	switch r := runes[idx]; {
 	case r == '$':
@@ -96,7 +101,12 @@ func scanStructured(runes []rune, result *strings.Builder, i runeIndex, had hasW
 
 // scanDollarToken writes a dollar-quoted literal, or reports not-handled when the
 // dollar sign doesn't actually open a valid dollar quote.
-func scanDollarToken(runes []rune, result *strings.Builder, i runeIndex, had hasWhitespace) (runeIndex, hasWhitespace, bool) {
+func scanDollarToken(
+	runes []rune,
+	result *strings.Builder,
+	i runeIndex,
+	had hasWhitespace,
+) (runeIndex, hasWhitespace, bool) {
 	content, length := scanDollarQuote(runes, i)
 	if length == 0 {
 		return 0, false, false
@@ -105,14 +115,27 @@ func scanDollarToken(runes []rune, result *strings.Builder, i runeIndex, had has
 }
 
 // scanQuoteToken writes a single- or double-quoted literal.
-func scanQuoteToken(runes []rune, result *strings.Builder, i runeIndex, had hasWhitespace, quote runeType) (runeIndex, hasWhitespace, bool) {
+func scanQuoteToken(
+	runes []rune,
+	result *strings.Builder,
+	i runeIndex,
+	had hasWhitespace,
+	quote runeType,
+) (runeIndex, hasWhitespace, bool) {
 	content, length := scanString(runes, i, quote)
 	return writeLiteral(runes, result, i, had, content, length), hasWhitespace(false), true
 }
 
 // writeLiteral appends a scanned literal, adding a leading space if we need one,
 // and returns the position right after the literal.
-func writeLiteral(runes []rune, result *strings.Builder, i runeIndex, had hasWhitespace, content quotedString, length runeCount) runeIndex {
+func writeLiteral(
+	runes []rune,
+	result *strings.Builder,
+	i runeIndex,
+	had hasWhitespace,
+	content quotedString,
+	length runeCount,
+) runeIndex {
 	idx := int(i)
 	addSpaceIfNeeded(result, had, runeType(runes[idx]))
 	emit(result, string(content))

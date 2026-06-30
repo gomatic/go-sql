@@ -19,7 +19,11 @@ func TestCreateViewIdentity(t *testing.T) {
 
 	tests := []viewIdentityCase{
 		{name: "simple_view", sql: "CREATE VIEW my_view AS SELECT 1", expected: "create.view:my_view"},
-		{name: "schema_qualified", sql: "CREATE VIEW my_schema.my_view AS SELECT 1", expected: "create.view:my_schema.my_view"},
+		{
+			name:     "schema_qualified",
+			sql:      "CREATE VIEW my_schema.my_view AS SELECT 1",
+			expected: "create.view:my_schema.my_view",
+		},
 		{name: "or_replace", sql: "CREATE OR REPLACE VIEW my_view AS SELECT 1", expected: "create.view:my_view"},
 		{name: "with_columns", sql: "CREATE VIEW my_view (col1, col2) AS SELECT 1, 2", expected: "create.view:my_view"},
 	}
@@ -69,9 +73,24 @@ func TestCreateViewDiff(t *testing.T) {
 	want, must := assert.New(t), require.New(t)
 
 	tests := []viewCompareCase{
-		{name: "identical_views", sourceSQL: "CREATE VIEW v AS SELECT 1", targetSQL: "CREATE VIEW v AS SELECT 1", expectDiffs: false},
-		{name: "different_query", sourceSQL: "CREATE VIEW v AS SELECT 1", targetSQL: "CREATE VIEW v AS SELECT 2", expectDiffs: true},
-		{name: "or_replace_vs_not", sourceSQL: "CREATE VIEW v AS SELECT 1", targetSQL: "CREATE OR REPLACE VIEW v AS SELECT 1", expectDiffs: true},
+		{
+			name:        "identical_views",
+			sourceSQL:   "CREATE VIEW v AS SELECT 1",
+			targetSQL:   "CREATE VIEW v AS SELECT 1",
+			expectDiffs: false,
+		},
+		{
+			name:        "different_query",
+			sourceSQL:   "CREATE VIEW v AS SELECT 1",
+			targetSQL:   "CREATE VIEW v AS SELECT 2",
+			expectDiffs: true,
+		},
+		{
+			name:        "or_replace_vs_not",
+			sourceSQL:   "CREATE VIEW v AS SELECT 1",
+			targetSQL:   "CREATE OR REPLACE VIEW v AS SELECT 1",
+			expectDiffs: true,
+		},
 	}
 
 	for _, tt := range tests {

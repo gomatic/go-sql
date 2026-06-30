@@ -19,9 +19,17 @@ func TestCreateTableIdentity(t *testing.T) {
 
 	tests := []tableIdentityCase{
 		{name: "simple_table", sql: "CREATE TABLE my_table (id int)", expected: "create.table:my_table"},
-		{name: "schema_qualified", sql: "CREATE TABLE my_schema.my_table (id int)", expected: "create.table:my_schema.my_table"},
+		{
+			name:     "schema_qualified",
+			sql:      "CREATE TABLE my_schema.my_table (id int)",
+			expected: "create.table:my_schema.my_table",
+		},
 		{name: "if_not_exists", sql: "CREATE TABLE IF NOT EXISTS my_table (id int)", expected: "create.table:my_table"},
-		{name: "with_columns", sql: "CREATE TABLE users (id int, name text, email text)", expected: "create.table:users"},
+		{
+			name:     "with_columns",
+			sql:      "CREATE TABLE users (id int, name text, email text)",
+			expected: "create.table:users",
+		},
 	}
 
 	for _, tt := range tests {
@@ -70,10 +78,30 @@ func TestCreateTableDiff(t *testing.T) {
 	want, must := assert.New(t), require.New(t)
 
 	tests := []tableCompareCase{
-		{name: "identical_tables", sourceSQL: "CREATE TABLE t (id int)", targetSQL: "CREATE TABLE t (id int)", expectDiffs: false},
-		{name: "different_column_type", sourceSQL: "CREATE TABLE t (id int)", targetSQL: "CREATE TABLE t (id text)", expectDiffs: true},
-		{name: "different_column_name", sourceSQL: "CREATE TABLE t (id int)", targetSQL: "CREATE TABLE t (user_id int)", expectDiffs: true},
-		{name: "additional_column", sourceSQL: "CREATE TABLE t (id int)", targetSQL: "CREATE TABLE t (id int, name text)", expectDiffs: true},
+		{
+			name:        "identical_tables",
+			sourceSQL:   "CREATE TABLE t (id int)",
+			targetSQL:   "CREATE TABLE t (id int)",
+			expectDiffs: false,
+		},
+		{
+			name:        "different_column_type",
+			sourceSQL:   "CREATE TABLE t (id int)",
+			targetSQL:   "CREATE TABLE t (id text)",
+			expectDiffs: true,
+		},
+		{
+			name:        "different_column_name",
+			sourceSQL:   "CREATE TABLE t (id int)",
+			targetSQL:   "CREATE TABLE t (user_id int)",
+			expectDiffs: true,
+		},
+		{
+			name:        "additional_column",
+			sourceSQL:   "CREATE TABLE t (id int)",
+			targetSQL:   "CREATE TABLE t (id int, name text)",
+			expectDiffs: true,
+		},
 	}
 
 	for _, tt := range tests {

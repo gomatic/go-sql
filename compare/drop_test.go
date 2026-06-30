@@ -22,9 +22,17 @@ func TestDropIdentity(t *testing.T) {
 		{name: "drop_table", sql: "DROP TABLE IF EXISTS my_schema.my_table", expected: "drop.table:my_schema.my_table"},
 		{name: "drop_index", sql: "DROP INDEX IF EXISTS my_index", expected: "drop.index:my_index"},
 		{name: "drop_view", sql: "DROP VIEW IF EXISTS my_schema.my_view", expected: "drop.view:my_schema.my_view"},
-		{name: "drop_function", sql: "DROP FUNCTION IF EXISTS my_schema.my_func(int, text)", expected: "drop.function:my_schema.my_func(pg_catalog.int4,text)"},
+		{
+			name:     "drop_function",
+			sql:      "DROP FUNCTION IF EXISTS my_schema.my_func(int, text)",
+			expected: "drop.function:my_schema.my_func(pg_catalog.int4,text)",
+		},
 		{name: "drop_schema", sql: "DROP SCHEMA IF EXISTS my_schema", expected: "drop.schema:my_schema"},
-		{name: "drop_trigger", sql: "DROP TRIGGER IF EXISTS my_trigger ON my_table", expected: "drop.trigger:my_table.my_trigger"},
+		{
+			name:     "drop_trigger",
+			sql:      "DROP TRIGGER IF EXISTS my_trigger ON my_table",
+			expected: "drop.trigger:my_table.my_trigger",
+		},
 	}
 
 	for _, tt := range tests {
@@ -68,7 +76,11 @@ func TestMapObjectType(t *testing.T) {
 		{name: "table", objType: objectTypeInt(pg_query.ObjectType_OBJECT_TABLE), expected: "table"},
 		{name: "trigger", objType: objectTypeInt(pg_query.ObjectType_OBJECT_TRIGGER), expected: "trigger"},
 		{name: "view", objType: objectTypeInt(pg_query.ObjectType_OBJECT_VIEW), expected: "view"},
-		{name: "unhandled_falls_back", objType: objectTypeInt(pg_query.ObjectType_OBJECT_SEQUENCE), expected: "unknown_object__sequence"},
+		{
+			name:     "unhandled_falls_back",
+			objType:  objectTypeInt(pg_query.ObjectType_OBJECT_SEQUENCE),
+			expected: "unknown_object__sequence",
+		},
 	}
 
 	for _, tt := range tests {
@@ -120,5 +132,8 @@ func TestFirstObjectNode(t *testing.T) {
 	want, _ := assert.New(t), require.New(t)
 
 	want.Nil(firstObjectNode(statementData{}, keyObjects), "no objects yields nil")
-	want.Nil(firstObjectNode(statementData{"objects": []any{"not a map"}}, keyObjects), "non-map first object yields nil")
+	want.Nil(
+		firstObjectNode(statementData{"objects": []any{"not a map"}}, keyObjects),
+		"non-map first object yields nil",
+	)
 }

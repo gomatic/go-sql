@@ -82,8 +82,16 @@ func TestConstraintBodyKinds(t *testing.T) {
 	f := New()
 	assert.Equal(t, "primary key", f.constraintBody(&pg_query.Constraint{Contype: pg_query.ConstrType_CONSTR_PRIMARY}))
 	assert.Equal(t, "unique", f.constraintBody(&pg_query.Constraint{Contype: pg_query.ConstrType_CONSTR_UNIQUE}))
-	assert.Equal(t, "check (a)", f.constraintBody(&pg_query.Constraint{Contype: pg_query.ConstrType_CONSTR_CHECK, RawExpr: columnRefNode("a")}))
-	assert.Equal(t, "/* unknown constraint */", f.constraintBody(&pg_query.Constraint{Contype: pg_query.ConstrType_CONSTR_NOTNULL}))
+	assert.Equal(
+		t,
+		"check (a)",
+		f.constraintBody(&pg_query.Constraint{Contype: pg_query.ConstrType_CONSTR_CHECK, RawExpr: columnRefNode("a")}),
+	)
+	assert.Equal(
+		t,
+		"/* unknown constraint */",
+		f.constraintBody(&pg_query.Constraint{Contype: pg_query.ConstrType_CONSTR_NOTNULL}),
+	)
 }
 
 func TestForeignKeyBody(t *testing.T) {
@@ -118,12 +126,34 @@ func TestFormatConstraintNamed(t *testing.T) {
 func TestFormatColumnConstraintKinds(t *testing.T) {
 	t.Parallel()
 	f := New()
-	assert.Equal(t, "not null", f.formatColumnConstraint(&pg_query.Constraint{Contype: pg_query.ConstrType_CONSTR_NOTNULL}))
+	assert.Equal(
+		t,
+		"not null",
+		f.formatColumnConstraint(&pg_query.Constraint{Contype: pg_query.ConstrType_CONSTR_NOTNULL}),
+	)
 	assert.Equal(t, "null", f.formatColumnConstraint(&pg_query.Constraint{Contype: pg_query.ConstrType_CONSTR_NULL}))
-	assert.Equal(t, "default 1", f.formatColumnConstraint(&pg_query.Constraint{Contype: pg_query.ConstrType_CONSTR_DEFAULT, RawExpr: aconstIntNode(1)}))
-	assert.Equal(t, "primary key", f.formatColumnConstraint(&pg_query.Constraint{Contype: pg_query.ConstrType_CONSTR_PRIMARY}))
-	assert.Equal(t, "unique", f.formatColumnConstraint(&pg_query.Constraint{Contype: pg_query.ConstrType_CONSTR_UNIQUE}))
-	assert.Equal(t, "/* unknown column constraint */", f.formatColumnConstraint(&pg_query.Constraint{Contype: pg_query.ConstrType_CONSTR_CHECK}))
+	assert.Equal(
+		t,
+		"default 1",
+		f.formatColumnConstraint(
+			&pg_query.Constraint{Contype: pg_query.ConstrType_CONSTR_DEFAULT, RawExpr: aconstIntNode(1)},
+		),
+	)
+	assert.Equal(
+		t,
+		"primary key",
+		f.formatColumnConstraint(&pg_query.Constraint{Contype: pg_query.ConstrType_CONSTR_PRIMARY}),
+	)
+	assert.Equal(
+		t,
+		"unique",
+		f.formatColumnConstraint(&pg_query.Constraint{Contype: pg_query.ConstrType_CONSTR_UNIQUE}),
+	)
+	assert.Equal(
+		t,
+		"/* unknown column constraint */",
+		f.formatColumnConstraint(&pg_query.Constraint{Contype: pg_query.ConstrType_CONSTR_CHECK}),
+	)
 }
 
 func TestFormatCreateFunction(t *testing.T) {

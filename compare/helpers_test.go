@@ -49,7 +49,12 @@ func parseStatement(t *testing.T, must *require.Assertions, s sqlStatement) stat
 
 // parseAndExtractData parses SQL and returns the data payload, checking the type
 // along the way.
-func parseAndExtractData(t *testing.T, must *require.Assertions, s sqlStatement, expectedType pgQueryType) statementData {
+func parseAndExtractData(
+	t *testing.T,
+	must *require.Assertions,
+	s sqlStatement,
+	expectedType pgQueryType,
+) statementData {
 	t.Helper()
 
 	stmt := parseStatement(t, must, s)

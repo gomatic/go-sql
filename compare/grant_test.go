@@ -19,9 +19,21 @@ func TestGrantIdentity(t *testing.T) {
 
 	tests := []grantIdentityCase{
 		{name: "grant_on_table", sql: "GRANT SELECT ON my_table TO my_role", expected: "grant.table:my_table:my_role"},
-		{name: "grant_on_schema_table", sql: "GRANT SELECT ON my_schema.my_table TO my_role", expected: "grant.table:my_schema.my_table:my_role"},
-		{name: "revoke_on_table", sql: "REVOKE SELECT ON my_table FROM my_role", expected: "revoke.table:my_table:my_role"},
-		{name: "grant_on_schema", sql: "GRANT USAGE ON SCHEMA my_schema TO my_role", expected: "grant.schema:my_schema:my_role"},
+		{
+			name:     "grant_on_schema_table",
+			sql:      "GRANT SELECT ON my_schema.my_table TO my_role",
+			expected: "grant.table:my_schema.my_table:my_role",
+		},
+		{
+			name:     "revoke_on_table",
+			sql:      "REVOKE SELECT ON my_table FROM my_role",
+			expected: "revoke.table:my_table:my_role",
+		},
+		{
+			name:     "grant_on_schema",
+			sql:      "GRANT USAGE ON SCHEMA my_schema TO my_role",
+			expected: "grant.schema:my_schema:my_role",
+		},
 	}
 
 	for _, tt := range tests {
@@ -49,8 +61,18 @@ func TestGrantDiff(t *testing.T) {
 		targetSQL   sqlStatement
 		expectDiffs expectBool
 	}{
-		{name: "identical_grants", sourceSQL: "GRANT SELECT ON t TO r", targetSQL: "GRANT SELECT ON t TO r", expectDiffs: false},
-		{name: "different_privilege", sourceSQL: "GRANT SELECT ON t TO r", targetSQL: "GRANT INSERT ON t TO r", expectDiffs: true},
+		{
+			name:        "identical_grants",
+			sourceSQL:   "GRANT SELECT ON t TO r",
+			targetSQL:   "GRANT SELECT ON t TO r",
+			expectDiffs: false,
+		},
+		{
+			name:        "different_privilege",
+			sourceSQL:   "GRANT SELECT ON t TO r",
+			targetSQL:   "GRANT INSERT ON t TO r",
+			expectDiffs: true,
+		},
 	}
 
 	for _, tt := range tests {
@@ -103,7 +125,9 @@ func TestExtractGrantObjectName_Fallbacks(t *testing.T) {
 	want.Equal(qualifiedName(""), extractGrantObjectName(node))
 
 	// A string_ node (a schema grant) gives back the bare name.
-	strNode := statementData{"objects": []any{map[string]any{"node": map[string]any{"string_": map[string]any{"sval": "app"}}}}}
+	strNode := statementData{
+		"objects": []any{map[string]any{"node": map[string]any{"string_": map[string]any{"sval": "app"}}}},
+	}
 	want.Equal(qualifiedName("app"), extractGrantObjectName(strNode))
 }
 

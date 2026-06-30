@@ -18,10 +18,26 @@ func TestCommentIdentity(t *testing.T) {
 	want, must := assert.New(t), require.New(t)
 
 	tests := []commentIdentityCase{
-		{name: "comment_on_column", sql: "COMMENT ON COLUMN my_schema.my_table.my_col IS 'description'", expected: "comment.column:my_schema.my_table.my_col"},
-		{name: "comment_on_schema", sql: "COMMENT ON SCHEMA my_schema IS 'description'", expected: "comment.schema:my_schema"},
-		{name: "comment_on_table", sql: "COMMENT ON TABLE my_schema.my_table IS 'description'", expected: "comment.table:my_schema.my_table"},
-		{name: "comment_on_function", sql: "COMMENT ON FUNCTION my_func() IS 'description'", expected: "comment.function:my_func"},
+		{
+			name:     "comment_on_column",
+			sql:      "COMMENT ON COLUMN my_schema.my_table.my_col IS 'description'",
+			expected: "comment.column:my_schema.my_table.my_col",
+		},
+		{
+			name:     "comment_on_schema",
+			sql:      "COMMENT ON SCHEMA my_schema IS 'description'",
+			expected: "comment.schema:my_schema",
+		},
+		{
+			name:     "comment_on_table",
+			sql:      "COMMENT ON TABLE my_schema.my_table IS 'description'",
+			expected: "comment.table:my_schema.my_table",
+		},
+		{
+			name:     "comment_on_function",
+			sql:      "COMMENT ON FUNCTION my_func() IS 'description'",
+			expected: "comment.function:my_func",
+		},
 	}
 
 	for _, tt := range tests {
@@ -50,11 +66,36 @@ func TestCommentDiff_SmartTags(t *testing.T) {
 	want, must := assert.New(t), require.New(t)
 
 	tests := []commentCompareCase{
-		{name: "different_order_same_tags", sourceSQL: "COMMENT ON TABLE t IS '@omit create\n@name foo'", targetSQL: "COMMENT ON TABLE t IS '@name foo\n@omit create'", expectDiffs: false},
-		{name: "different_smart_tags", sourceSQL: "COMMENT ON TABLE t IS '@omit create'", targetSQL: "COMMENT ON TABLE t IS '@omit delete'", expectDiffs: true},
-		{name: "identical_smart_tags", sourceSQL: "COMMENT ON TABLE t IS '@omit create,delete'", targetSQL: "COMMENT ON TABLE t IS '@omit create,delete'", expectDiffs: false},
-		{name: "ignore_title_description", sourceSQL: "COMMENT ON TABLE t IS 'title: foo\ndescription: bar'", targetSQL: "COMMENT ON TABLE t IS 'title: baz\ndescription: qux'", expectDiffs: false},
-		{name: "no_smart_tags_equal", sourceSQL: "COMMENT ON TABLE t IS 'just a comment'", targetSQL: "COMMENT ON TABLE t IS 'different comment'", expectDiffs: false},
+		{
+			name:        "different_order_same_tags",
+			sourceSQL:   "COMMENT ON TABLE t IS '@omit create\n@name foo'",
+			targetSQL:   "COMMENT ON TABLE t IS '@name foo\n@omit create'",
+			expectDiffs: false,
+		},
+		{
+			name:        "different_smart_tags",
+			sourceSQL:   "COMMENT ON TABLE t IS '@omit create'",
+			targetSQL:   "COMMENT ON TABLE t IS '@omit delete'",
+			expectDiffs: true,
+		},
+		{
+			name:        "identical_smart_tags",
+			sourceSQL:   "COMMENT ON TABLE t IS '@omit create,delete'",
+			targetSQL:   "COMMENT ON TABLE t IS '@omit create,delete'",
+			expectDiffs: false,
+		},
+		{
+			name:        "ignore_title_description",
+			sourceSQL:   "COMMENT ON TABLE t IS 'title: foo\ndescription: bar'",
+			targetSQL:   "COMMENT ON TABLE t IS 'title: baz\ndescription: qux'",
+			expectDiffs: false,
+		},
+		{
+			name:        "no_smart_tags_equal",
+			sourceSQL:   "COMMENT ON TABLE t IS 'just a comment'",
+			targetSQL:   "COMMENT ON TABLE t IS 'different comment'",
+			expectDiffs: false,
+		},
 	}
 
 	for _, tt := range tests {
@@ -93,11 +134,19 @@ func TestExtractSmartTags(t *testing.T) {
 	want, _ := assert.New(t), require.New(t)
 
 	tests := []smartTagCase{
-		{name: "multiple_tags", comment: "@omit create\n@name foo\n@unique id", expected: []string{"@omit create", "@name foo", "@unique id"}},
+		{
+			name:     "multiple_tags",
+			comment:  "@omit create\n@name foo\n@unique id",
+			expected: []string{"@omit create", "@name foo", "@unique id"},
+		},
 		{name: "no_smart_tags", comment: "just a regular comment", expected: nil},
 		{name: "single_tag", comment: "@omit create,delete", expected: []string{"@omit create,delete"}},
 		{name: "text_before_first_at", comment: "some text before @omit create", expected: []string{"@omit create"}},
-		{name: "title_description_filtered", comment: "@title: foo\n@description: bar\n@omit create", expected: []string{"@omit create"}},
+		{
+			name:     "title_description_filtered",
+			comment:  "@title: foo\n@description: bar\n@omit create",
+			expected: []string{"@omit create"},
+		},
 		{name: "empty_tag_skipped", comment: "@@omit create", expected: []string{"@omit create"}},
 	}
 

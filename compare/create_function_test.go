@@ -18,10 +18,26 @@ func TestCreateFunctionIdentity(t *testing.T) {
 	want, must := assert.New(t), require.New(t)
 
 	tests := []funcIdentityCase{
-		{name: "function_overload", sql: "CREATE FUNCTION my_func(a text) RETURNS int AS $$ SELECT 1; $$ LANGUAGE sql", expected: "create.function:my_func(text)"},
-		{name: "function_with_args", sql: "CREATE FUNCTION my_func(a int, b text) RETURNS int AS $$ SELECT 1; $$ LANGUAGE sql", expected: "create.function:my_func(pg_catalog.int4,text)"},
-		{name: "function_with_schema", sql: "CREATE FUNCTION my_schema.my_func() RETURNS int AS $$ SELECT 1; $$ LANGUAGE sql", expected: "create.function:my_schema.my_func()"},
-		{name: "simple_function", sql: "CREATE FUNCTION my_func() RETURNS int AS $$ SELECT 1; $$ LANGUAGE sql", expected: "create.function:my_func()"},
+		{
+			name:     "function_overload",
+			sql:      "CREATE FUNCTION my_func(a text) RETURNS int AS $$ SELECT 1; $$ LANGUAGE sql",
+			expected: "create.function:my_func(text)",
+		},
+		{
+			name:     "function_with_args",
+			sql:      "CREATE FUNCTION my_func(a int, b text) RETURNS int AS $$ SELECT 1; $$ LANGUAGE sql",
+			expected: "create.function:my_func(pg_catalog.int4,text)",
+		},
+		{
+			name:     "function_with_schema",
+			sql:      "CREATE FUNCTION my_schema.my_func() RETURNS int AS $$ SELECT 1; $$ LANGUAGE sql",
+			expected: "create.function:my_schema.my_func()",
+		},
+		{
+			name:     "simple_function",
+			sql:      "CREATE FUNCTION my_func() RETURNS int AS $$ SELECT 1; $$ LANGUAGE sql",
+			expected: "create.function:my_func()",
+		},
 	}
 
 	for _, tt := range tests {

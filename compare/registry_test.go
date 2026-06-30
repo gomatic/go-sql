@@ -68,10 +68,34 @@ func TestRegistry_Diff(t *testing.T) {
 	reg := newRegistry()
 
 	tests := []registryDiffCase{
-		{name: "unknown_type_returns_nil", stmtType: "unknown", source: statementData{}, target: statementData{}, expectNil: true},
-		{name: "empty_type_returns_nil", stmtType: "", source: statementData{}, target: statementData{}, expectNil: true},
-		{name: "known_equal_returns_nil", stmtType: typeCreateTable, source: statementData{"a": 1}, target: statementData{"a": 1}, expectNil: true},
-		{name: "known_different_returns_diffs", stmtType: typeCreateTable, source: statementData{"a": 1}, target: statementData{"a": 2}, expectNil: false},
+		{
+			name:      "unknown_type_returns_nil",
+			stmtType:  "unknown",
+			source:    statementData{},
+			target:    statementData{},
+			expectNil: true,
+		},
+		{
+			name:      "empty_type_returns_nil",
+			stmtType:  "",
+			source:    statementData{},
+			target:    statementData{},
+			expectNil: true,
+		},
+		{
+			name:      "known_equal_returns_nil",
+			stmtType:  typeCreateTable,
+			source:    statementData{"a": 1},
+			target:    statementData{"a": 1},
+			expectNil: true,
+		},
+		{
+			name:      "known_different_returns_diffs",
+			stmtType:  typeCreateTable,
+			source:    statementData{"a": 1},
+			target:    statementData{"a": 2},
+			expectNil: false,
+		},
 	}
 
 	for _, tt := range tests {

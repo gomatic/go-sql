@@ -130,7 +130,9 @@ func TestDoCodeBlockVariants(t *testing.T) {
 
 func TestObjectAddressListJoins(t *testing.T) {
 	t.Parallel()
-	listNode := &pg_query.Node{Node: &pg_query.Node_List{List: &pg_query.List{Items: []*pg_query.Node{strNode("a"), strNode("b")}}}}
+	listNode := &pg_query.Node{
+		Node: &pg_query.Node_List{List: &pg_query.List{Items: []*pg_query.Node{strNode("a"), strNode("b")}}},
+	}
 	assert.Equal(t, "a.b", objectAddressList([]*pg_query.Node{listNode}))
 }
 
