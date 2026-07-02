@@ -34,18 +34,24 @@ func LowerKeywords(text string) (SQL, error) {
 	var out strings.Builder
 	cursor := 0
 	for _, tok := range result.Tokens {
-		cursor = writeToken(&out, text, tok, cursor)
+		cursor = writeToken(&out, textParam(text), tok, cursorParam(cursor))
 	}
 	_, _ = out.WriteString(text[cursor:])
 	return SQL(out.String()), nil
 }
 
+// cursorParam names the cursor parameter of writeToken; rename it to the real domain concept.
+type cursorParam int
+
+// textParam names the text parameter of writeToken; rename it to the real domain concept.
+type textParam string
+
 // writeToken copies the gap before tok verbatim, then the token itself —
 // lowercased when it's a keyword — and reports the new cursor.
-func writeToken(out *strings.Builder, text string, tok *pg_query.ScanToken, cursor int) int {
+func writeToken(out *strings.Builder, text textParam, tok *pg_query.ScanToken, cursor cursorParam) int {
 	start, end := int(tok.Start), int(tok.End)
-	_, _ = out.WriteString(text[cursor:start])
-	span := text[start:end]
+	_, _ = out.WriteString(string(text)[int(cursor):start])
+	span := string(text)[start:end]
 	if tok.KeywordKind != pg_query.KeywordKind_NO_KEYWORD {
 		span = strings.ToLower(span)
 	}

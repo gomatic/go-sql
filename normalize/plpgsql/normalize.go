@@ -57,8 +57,8 @@ func normalize(input Body) Body {
 
 // processToken consumes the token at i, appends its normalized text to result, and
 // hands back the next position plus whether that token was whitespace or a comment.
-func processToken(runes []rune, result *strings.Builder, i runeIndex, had hasWhitespace) (runeIndex, hasWhitespace) {
-	if next, nextHad, ok := scanStructured(runes, result, i, had); ok {
+func processToken(runes []rune, result *strings.Builder, i runeIndex, isHad hasWhitespace) (runeIndex, hasWhitespace) {
+	if next, nextHad, ok := scanStructured(runes, result, i, isHad); ok {
 		return next, nextHad
 	}
 
@@ -67,15 +67,18 @@ func processToken(runes []rune, result *strings.Builder, i runeIndex, had hasWhi
 		return runeIndex(idx + 1), hasWhitespace(true)
 	}
 
-	addSpaceIfNeeded(result, had, runeType(runes[idx]))
-	emit(result, string(runes[idx]))
+	addSpaceIfNeeded(result, isHad, runeType(runes[idx]))
+	emit(result, sParam(string(runes[idx])))
 	return runeIndex(idx + 1), hasWhitespace(false)
 }
 
+// sParam names the s parameter of emit; rename it to the real domain concept.
+type sParam string
+
 // emit appends s to result. strings.Builder writes are documented never to fail,
 // so we swallow the (always-nil) error in this one spot.
-func emit(result *strings.Builder, s string) {
-	_, _ = result.WriteString(s)
+func emit(result *strings.Builder, s sParam) {
+	_, _ = result.WriteString(string(s))
 }
 
 // scanStructured handles the multi-rune token shapes — dollar quotes, quoted
@@ -85,17 +88,17 @@ func scanStructured(
 	runes []rune,
 	result *strings.Builder,
 	i runeIndex,
-	had hasWhitespace,
+	isHad hasWhitespace,
 ) (runeIndex, hasWhitespace, bool) {
 	idx := int(i)
 	switch r := runes[idx]; {
 	case r == '$':
-		return scanDollarToken(runes, result, i, had)
+		return scanDollarToken(runes, result, i, isHad)
 	case r == '\'' || r == '"':
-		return scanQuoteToken(runes, result, i, had, runeType(r))
-	case isLineCommentStart(runes, idx):
+		return scanQuoteToken(runes, result, i, isHad, runeType(r))
+	case isLineCommentStart(runes, idxParam(idx)):
 		return runeIndex(skipLineComment(runes, idx)), hasWhitespace(true), true
-	case isBlockCommentStart(runes, idx):
+	case isBlockCommentStart(runes, idxParam(idx)):
 		return runeIndex(skipBlockComment(runes, idx)), hasWhitespace(true), true
 	default:
 		return 0, false, false
@@ -108,13 +111,13 @@ func scanDollarToken(
 	runes []rune,
 	result *strings.Builder,
 	i runeIndex,
-	had hasWhitespace,
+	isHad hasWhitespace,
 ) (runeIndex, hasWhitespace, bool) {
 	content, length := scanDollarQuote(runes, i)
 	if length == 0 {
 		return 0, false, false
 	}
-	return writeLiteral(runes, result, i, had, content, length), hasWhitespace(false), true
+	return writeLiteral(runes, result, i, isHad, content, length), hasWhitespace(false), true
 }
 
 // scanQuoteToken writes a single- or double-quoted literal.
@@ -122,11 +125,11 @@ func scanQuoteToken(
 	runes []rune,
 	result *strings.Builder,
 	i runeIndex,
-	had hasWhitespace,
+	isHad hasWhitespace,
 	quote runeType,
 ) (runeIndex, hasWhitespace, bool) {
 	content, length := scanString(runes, i, quote)
-	return writeLiteral(runes, result, i, had, content, length), hasWhitespace(false), true
+	return writeLiteral(runes, result, i, isHad, content, length), hasWhitespace(false), true
 }
 
 // writeLiteral appends a scanned literal, adding a leading space if we need one,
@@ -135,22 +138,25 @@ func writeLiteral(
 	runes []rune,
 	result *strings.Builder,
 	i runeIndex,
-	had hasWhitespace,
+	isHad hasWhitespace,
 	content quotedString,
 	length runeCount,
 ) runeIndex {
 	idx := int(i)
-	addSpaceIfNeeded(result, had, runeType(runes[idx]))
-	emit(result, string(content))
+	addSpaceIfNeeded(result, isHad, runeType(runes[idx]))
+	emit(result, sParam(string(content)))
 	return runeIndex(idx + int(length))
 }
 
+// idxParam names the idx parameter of isLineCommentStart; rename it to the real domain concept.
+type idxParam int
+
 // isLineCommentStart says whether a line comment (-- or #) begins at idx.
-func isLineCommentStart(runes []rune, idx int) bool {
-	if runes[idx] == '#' {
+func isLineCommentStart(runes []rune, idx idxParam) bool {
+	if runes[int(idx)] == '#' {
 		return true
 	}
-	return idx+1 < len(runes) && runes[idx] == '-' && runes[idx+1] == '-'
+	return int(idx)+1 < len(runes) && runes[int(idx)] == '-' && runes[int(idx)+1] == '-'
 }
 
 // skipLineComment returns the position past the line comment at idx, newline and
@@ -166,8 +172,8 @@ func skipLineComment(runes []rune, idx int) int {
 }
 
 // isBlockCommentStart says whether a block comment opens at idx.
-func isBlockCommentStart(runes []rune, idx int) bool {
-	return idx+1 < len(runes) && runes[idx] == '/' && runes[idx+1] == '*'
+func isBlockCommentStart(runes []rune, idx idxParam) bool {
+	return int(idx)+1 < len(runes) && runes[int(idx)] == '/' && runes[int(idx)+1] == '*'
 }
 
 // skipBlockComment returns the position past a possibly nested block comment.
@@ -216,7 +222,7 @@ var spacingRules = []func(spacingContext) spaceDecision{
 
 // addSpaceIfNeeded writes a separating space before curr when the spacing rules
 // ask for one.
-func addSpaceIfNeeded(result *strings.Builder, had hasWhitespace, curr runeType) {
+func addSpaceIfNeeded(result *strings.Builder, isHad hasWhitespace, curr runeType) {
 	if result.Len() == 0 {
 		return
 	}
@@ -225,10 +231,10 @@ func addSpaceIfNeeded(result *strings.Builder, had hasWhitespace, curr runeType)
 		last:   getLastRune(written),
 		penult: getPenultimateRune(written),
 		curr:   curr,
-		had:    had,
+		had:    isHad,
 	}
 	if spaceWanted(ctx) {
-		emit(result, " ")
+		emit(result, sParam(" "))
 	}
 }
 
@@ -366,13 +372,13 @@ func getPenultimateRune(s normalizedText) runeType {
 // open a valid dollar quote.
 func scanDollarQuote(runes []rune, start runeIndex) (quotedString, runeCount) {
 	startIdx := int(start)
-	tagEnd, ok := dollarTagEnd(runes, startIdx)
+	tagEnd, ok := dollarTagEnd(runes, startIdxParam(startIdx))
 	if !ok {
 		return quotedString(""), runeCount(0)
 	}
 
 	tag := string(runes[startIdx : tagEnd+1])
-	end := findClosingTag(runes, tagEnd+1, tag)
+	end := findClosingTag(runes, fromParam(tagEnd+1), tagParam(tag))
 	if end < 0 {
 		return quotedString(""), runeCount(0)
 	}
@@ -380,12 +386,15 @@ func scanDollarQuote(runes []rune, start runeIndex) (quotedString, runeCount) {
 	return quotedString(string(runes[startIdx:end])), runeCount(end - startIdx)
 }
 
+// startIdxParam names the startIdx parameter of dollarTagEnd; rename it to the real domain concept.
+type startIdxParam int
+
 // dollarTagEnd returns the index of the closing $ of a dollar-quote opening tag,
 // or false when the tag is malformed or never terminates.
-func dollarTagEnd(runes []rune, startIdx int) (int, bool) {
-	tagEnd := startIdx + 1
+func dollarTagEnd(runes []rune, startIdx startIdxParam) (int, bool) {
+	tagEnd := int(startIdx) + 1
 	for tagEnd < len(runes) && runes[tagEnd] != '$' {
-		if !isTagChar(runes[tagEnd]) {
+		if !isTagChar(rParam(runes[tagEnd])) {
 			return 0, false
 		}
 		tagEnd++
@@ -396,17 +405,26 @@ func dollarTagEnd(runes []rune, startIdx int) (int, bool) {
 	return tagEnd, true
 }
 
+// rParam names the r parameter of isTagChar; rename it to the real domain concept.
+type rParam rune
+
 // isTagChar says whether r is allowed inside a dollar-quote tag.
-func isTagChar(r rune) bool {
-	return unicode.IsLetter(r) || unicode.IsDigit(r) || r == '_'
+func isTagChar(r rParam) bool {
+	return unicode.IsLetter(rune(r)) || unicode.IsDigit(rune(r)) || rune(r) == '_'
 }
+
+// fromParam names the from parameter of findClosingTag; rename it to the real domain concept.
+type fromParam int
+
+// tagParam names the tag parameter of findClosingTag; rename it to the real domain concept.
+type tagParam string
 
 // findClosingTag returns the index just past the closing tag at or after from, or
 // -1 if the tag never shows up again.
-func findClosingTag(runes []rune, from int, tag string) int {
-	tagLen := len([]rune(tag))
-	for i := from; i < len(runes); i++ {
-		if i+tagLen <= len(runes) && string(runes[i:i+tagLen]) == tag {
+func findClosingTag(runes []rune, from fromParam, tag tagParam) int {
+	tagLen := len([]rune(string(tag)))
+	for i := int(from); i < len(runes); i++ {
+		if i+tagLen <= len(runes) && string(runes[i:i+tagLen]) == string(tag) {
 			return i + tagLen
 		}
 	}
@@ -420,7 +438,7 @@ func scanString(runes []rune, start runeIndex, quote runeType) (quotedString, ru
 	startIdx := int(start)
 
 	for i := startIdx + 1; i < len(runes); {
-		end, next := stringStep(runes, i, quoteRune)
+		end, next := stringStep(runes, iParam(i), quoteParam(quoteRune))
 		if end >= 0 {
 			return quotedString(string(runes[startIdx:end])), runeCount(end - startIdx)
 		}
@@ -430,28 +448,34 @@ func scanString(runes []rune, start runeIndex, quote runeType) (quotedString, ru
 	return quotedString(string(runes[startIdx:])), runeCount(len(runes) - startIdx)
 }
 
+// iParam names the i parameter of stringStep; rename it to the real domain concept.
+type iParam int
+
+// quoteParam names the quote parameter of stringStep; rename it to the real domain concept.
+type quoteParam rune
+
 // stringStep looks at the rune at i. It returns a non-negative end index when the
 // literal closes at i; otherwise end is -1 and next is where to pick back up.
-func stringStep(runes []rune, i int, quote rune) (end, next int) {
-	if runes[i] == quote {
+func stringStep(runes []rune, i iParam, quote quoteParam) (end, next int) {
+	if runes[int(i)] == rune(quote) {
 		if isDoubledQuote(runes, i, quote) {
-			return -1, i + 2
+			return -1, int(i) + 2
 		}
-		return i + 1, 0
+		return int(i) + 1, 0
 	}
 	if isBackslashEscape(runes, i, quote) {
-		return -1, i + 2
+		return -1, int(i) + 2
 	}
-	return -1, i + 1
+	return -1, int(i) + 1
 }
 
 // isDoubledQuote says whether a doubled quote (an escaped quote) sits at i.
-func isDoubledQuote(runes []rune, i int, quote rune) bool {
-	return i+1 < len(runes) && runes[i+1] == quote
+func isDoubledQuote(runes []rune, i iParam, quote quoteParam) bool {
+	return int(i)+1 < len(runes) && runes[int(i)+1] == rune(quote)
 }
 
 // isBackslashEscape says whether a backslash escape sits at i inside a
 // single-quoted literal.
-func isBackslashEscape(runes []rune, i int, quote rune) bool {
-	return quote == '\'' && runes[i] == '\\' && i+1 < len(runes)
+func isBackslashEscape(runes []rune, i iParam, quote quoteParam) bool {
+	return rune(quote) == '\'' && runes[int(i)] == '\\' && int(i)+1 < len(runes)
 }

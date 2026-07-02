@@ -96,22 +96,28 @@ func Render(d Doc, width int) string {
 	for len(stack) > 0 {
 		top := stack[len(stack)-1]
 		stack = stack[:len(stack)-1]
-		col, stack = step(&out, top, col, stack, width)
+		col, stack = step(&out, top, colParam(col), stack, widthParam(width))
 	}
 	return out.String()
 }
 
+// colParam names the col parameter of step; rename it to the real domain concept.
+type colParam int
+
+// widthParam names the width parameter of step; rename it to the real domain concept.
+type widthParam int
+
 // step emits one frame, pushing any children back onto the stack, and reports
 // the new column and stack.
-func step(out *strings.Builder, f frame, col int, stack []frame, width int) (int, []frame) {
+func step(out *strings.Builder, f frame, col colParam, stack []frame, width widthParam) (int, []frame) {
 	switch f.kind() {
 	case kindText:
 		_, _ = out.WriteString(f.doc.text)
-		return col + len(f.doc.text), stack
+		return int(col) + len(f.doc.text), stack
 	case kindConcat, kindIndent:
-		return col, pushChildren(f, stack)
+		return int(col), pushChildren(f, stack)
 	case kindGroup:
-		return col, pushGroup(f, stack, width, col)
+		return int(col), pushGroup(f, stack, int(width), int(col))
 	default:
 		return emitLine(out, f, col), stack
 	}
@@ -168,7 +174,7 @@ func fits(remaining int, f frame, rest []frame) bool {
 		top := stack[len(stack)-1]
 		stack = stack[:len(stack)-1]
 		var newline bool
-		remaining, stack, newline = fitsStep(top, remaining, stack)
+		remaining, stack, newline = fitsStep(top, remainingParam(remaining), stack)
 		if newline {
 			return true
 		}
@@ -176,43 +182,46 @@ func fits(remaining int, f frame, rest []frame) bool {
 	return remaining >= 0
 }
 
+// remainingParam names the remaining parameter of fitsStep; rename it to the real domain concept.
+type remainingParam int
+
 // fitsStep consumes one frame for [fits], returning the remaining width, the
 // updated work stack, and whether this frame ended the current line.
-func fitsStep(f frame, remaining int, stack []frame) (int, []frame, bool) {
+func fitsStep(f frame, remaining remainingParam, stack []frame) (int, []frame, bool) {
 	switch f.doc.kind {
 	case kindText:
-		return remaining - len(f.doc.text), stack, false
+		return int(remaining) - len(f.doc.text), stack, false
 	case kindConcat, kindIndent:
-		return remaining, pushChildren(f, stack), false
+		return int(remaining), pushChildren(f, stack), false
 	case kindGroup:
-		return remaining, append(stack, frame{doc: f.doc.children[0], indent: f.indent, mode: f.mode}), false
+		return int(remaining), append(stack, frame{doc: f.doc.children[0], indent: f.indent, mode: f.mode}), false
 	case kindLine:
 		return fitsLine(f, remaining, stack)
 	case kindSoftline:
-		return remaining, stack, f.mode == modeBreak
+		return int(remaining), stack, f.mode == modeBreak
 	default:
-		return remaining, stack, true
+		return int(remaining), stack, true
 	}
 }
 
 // fitsLine handles a [Line] inside [fits]: a break-mode line is a newline; a
 // flat one costs the single space it would render.
-func fitsLine(f frame, remaining int, stack []frame) (int, []frame, bool) {
+func fitsLine(f frame, remaining remainingParam, stack []frame) (int, []frame, bool) {
 	if f.mode == modeBreak {
-		return remaining, stack, true
+		return int(remaining), stack, true
 	}
-	return remaining - 1, stack, false
+	return int(remaining) - 1, stack, false
 }
 
 // emitLine renders a line primitive: a space or empty when flat, a newline plus
 // indentation when broken, and reports the resulting column.
-func emitLine(out *strings.Builder, f frame, col int) int {
+func emitLine(out *strings.Builder, f frame, col colParam) int {
 	if f.mode == modeFlat && f.doc.kind != kindHardline {
 		if f.doc.kind == kindLine {
 			_, _ = out.WriteString(" ")
-			return col + 1
+			return int(col) + 1
 		}
-		return col
+		return int(col)
 	}
 	_, _ = out.WriteString("\n")
 	_, _ = out.WriteString(strings.Repeat(" ", f.indent))

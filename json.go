@@ -114,7 +114,7 @@ func nodeTypeName(n any) string {
 	if idx := strings.LastIndex(typeName, "."); idx >= 0 {
 		typeName = typeName[idx+1:]
 	}
-	return toSnakeCase(strings.TrimPrefix(typeName, "Node_"))
+	return toSnakeCase(sParam(strings.TrimPrefix(typeName, "Node_")))
 }
 
 type fieldInfo struct {
@@ -157,7 +157,7 @@ func structFields(v reflect.Value) []fieldInfo {
 			continue
 		}
 		if normalized := normalizeValue(fieldValue); !isZeroValue(normalized) {
-			fields = append(fields, fieldInfo{name: toSnakeCase(typ.Field(i).Name), value: normalized})
+			fields = append(fields, fieldInfo{name: toSnakeCase(sParam(typ.Field(i).Name)), value: normalized})
 		}
 	}
 	return fields
@@ -257,22 +257,28 @@ func isZeroValue(v any) bool {
 	}
 }
 
-func toSnakeCase(s string) string {
+// sParam names the s parameter of toSnakeCase; rename it to the real domain concept.
+type sParam string
+
+func toSnakeCase(s sParam) string {
 	var result []rune
-	for i, r := range s {
-		if i > 0 && isUpper(r) && !isUpper(rune(s[i-1])) {
+	for i, r := range string(s) {
+		if i > 0 && isUpper(rParam(r)) && !isUpper(rParam(rune(string(s)[i-1]))) {
 			result = append(result, '_')
 		}
-		result = append(result, toLower(r))
+		result = append(result, toLower(rParam(r)))
 	}
 	return string(result)
 }
 
-func isUpper(r rune) bool { return r >= 'A' && r <= 'Z' }
+// rParam names the r parameter of isUpper; rename it to the real domain concept.
+type rParam rune
 
-func toLower(r rune) rune {
-	if isUpper(r) {
-		return r + ('a' - 'A')
+func isUpper(r rParam) bool { return rune(r) >= 'A' && rune(r) <= 'Z' }
+
+func toLower(r rParam) rune {
+	if isUpper(rParam(rune(r))) {
+		return rune(r) + ('a' - 'A')
 	}
-	return r
+	return rune(r)
 }

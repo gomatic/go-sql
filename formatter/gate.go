@@ -6,17 +6,20 @@ import (
 	sql "github.com/gomatic/go-sql"
 )
 
+// originalParam names the original parameter of chooseFormatted; rename it to the real domain concept.
+type originalParam string
+
 // chooseFormatted returns the first candidate that renders original without
 // changing its meaning or its comments, falling back to original verbatim when
 // none is safe. This is what keeps the formatter from ever corrupting SQL: a
 // candidate it can't prove equivalent is simply not used.
-func chooseFormatted(original string, candidates ...string) string {
+func chooseFormatted(original originalParam, candidates ...string) string {
 	for _, candidate := range candidates {
-		if preservesMeaning(original, candidate) {
+		if preservesMeaning(string(original), candidate) {
 			return candidate
 		}
 	}
-	return original
+	return string(original)
 }
 
 // preservesMeaning reports whether candidate is the same statement as original

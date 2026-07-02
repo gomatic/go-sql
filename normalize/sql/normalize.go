@@ -55,7 +55,7 @@ func normalizeStrict(code SQL) SQL {
 
 // normalizeWithOptions parses, optionally sorts, and deparses code, falling back
 // to whitespace normalization if either the parse or the deparse fails.
-func normalizeWithOptions(code SQL, sortColumns sortColumnsEnabled, deparse deparseFunc) SQL {
+func normalizeWithOptions(code SQL, isSortColumns sortColumnsEnabled, deparse deparseFunc) SQL {
 	if code == "" {
 		return ""
 	}
@@ -65,7 +65,7 @@ func normalizeWithOptions(code SQL, sortColumns sortColumnsEnabled, deparse depa
 		return normalizeWhitespace(code)
 	}
 
-	if bool(sortColumns) {
+	if bool(isSortColumns) {
 		sql.SortColumnLists(tree)
 	}
 
@@ -74,14 +74,17 @@ func normalizeWithOptions(code SQL, sortColumns sortColumnsEnabled, deparse depa
 		return normalizeWhitespace(code)
 	}
 
-	return trimCanonical(string(deparsed))
+	return trimCanonical(sParam(string(deparsed)))
 }
 
 // normalizeWhitespace squashes runs of whitespace down to single spaces and trims
 // trailing semicolons. It's the fallback we use when parsing fails.
 func normalizeWhitespace(code SQL) SQL {
-	return trimCanonical(strings.Join(strings.Fields(string(code)), " "))
+	return trimCanonical(sParam(strings.Join(strings.Fields(string(code)), " ")))
 }
+
+// sParam names the s parameter of trimCanonical; rename it to the real domain concept.
+type sParam string
 
 // trimCanonical strips surrounding whitespace and every trailing semicolon —
 // each a meaningless empty statement — along with any whitespace padding them.
@@ -89,6 +92,6 @@ func normalizeWhitespace(code SQL) SQL {
 // semicolon) keeps the result canonical and idempotent: inputs like "0 ;" and
 // "0 ;;" both settle on "0" in a single pass instead of leaving a stray space or
 // a residual trailing semicolon for a second pass to clean up.
-func trimCanonical(s string) SQL {
-	return SQL(strings.TrimSpace(strings.TrimRight(strings.TrimSpace(s), "; \t\n\r\f\v")))
+func trimCanonical(s sParam) SQL {
+	return SQL(strings.TrimSpace(strings.TrimRight(strings.TrimSpace(string(s)), "; \t\n\r\f\v")))
 }

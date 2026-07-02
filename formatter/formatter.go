@@ -62,7 +62,7 @@ func formatStatement(query sql.SQL, stmt *pg_query.RawStmt) string {
 	if stmt.Stmt == nil {
 		return ""
 	}
-	return chooseFormatted(statementSource(query, stmt), candidates(stmt)...)
+	return chooseFormatted(originalParam(statementSource(query, stmt)), candidates(stmt)...)
 }
 
 // candidates lists the renderings to try, best first: the house style if it
