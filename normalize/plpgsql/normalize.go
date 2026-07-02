@@ -68,16 +68,16 @@ func processToken(runes []rune, result *strings.Builder, i runeIndex, isHad hasW
 	}
 
 	addSpaceIfNeeded(result, isHad, runeType(runes[idx]))
-	emit(result, sParam(string(runes[idx])))
+	emit(result, emittedText(string(runes[idx])))
 	return runeIndex(idx + 1), hasWhitespace(false)
 }
 
-// sParam names the s parameter of emit; rename it to the real domain concept.
-type sParam string
+// emittedText is a fragment of canonical output appended to the result builder.
+type emittedText string
 
 // emit appends s to result. strings.Builder writes are documented never to fail,
 // so we swallow the (always-nil) error in this one spot.
-func emit(result *strings.Builder, s sParam) {
+func emit(result *strings.Builder, s emittedText) {
 	_, _ = result.WriteString(string(s))
 }
 
@@ -96,9 +96,9 @@ func scanStructured(
 		return scanDollarToken(runes, result, i, isHad)
 	case r == '\'' || r == '"':
 		return scanQuoteToken(runes, result, i, isHad, runeType(r))
-	case isLineCommentStart(runes, idxParam(idx)):
+	case isLineCommentStart(runes, i):
 		return runeIndex(skipLineComment(runes, idx)), hasWhitespace(true), true
-	case isBlockCommentStart(runes, idxParam(idx)):
+	case isBlockCommentStart(runes, i):
 		return runeIndex(skipBlockComment(runes, idx)), hasWhitespace(true), true
 	default:
 		return 0, false, false
@@ -144,15 +144,12 @@ func writeLiteral(
 ) runeIndex {
 	idx := int(i)
 	addSpaceIfNeeded(result, isHad, runeType(runes[idx]))
-	emit(result, sParam(string(content)))
+	emit(result, emittedText(string(content)))
 	return runeIndex(idx + int(length))
 }
 
-// idxParam names the idx parameter of isLineCommentStart; rename it to the real domain concept.
-type idxParam int
-
 // isLineCommentStart says whether a line comment (-- or #) begins at idx.
-func isLineCommentStart(runes []rune, idx idxParam) bool {
+func isLineCommentStart(runes []rune, idx runeIndex) bool {
 	if runes[int(idx)] == '#' {
 		return true
 	}
@@ -172,7 +169,7 @@ func skipLineComment(runes []rune, idx int) int {
 }
 
 // isBlockCommentStart says whether a block comment opens at idx.
-func isBlockCommentStart(runes []rune, idx idxParam) bool {
+func isBlockCommentStart(runes []rune, idx runeIndex) bool {
 	return int(idx)+1 < len(runes) && runes[int(idx)] == '/' && runes[int(idx)+1] == '*'
 }
 
@@ -234,7 +231,7 @@ func addSpaceIfNeeded(result *strings.Builder, isHad hasWhitespace, curr runeTyp
 		had:    isHad,
 	}
 	if spaceWanted(ctx) {
-		emit(result, sParam(" "))
+		emit(result, emittedText(" "))
 	}
 }
 
@@ -372,13 +369,13 @@ func getPenultimateRune(s normalizedText) runeType {
 // open a valid dollar quote.
 func scanDollarQuote(runes []rune, start runeIndex) (quotedString, runeCount) {
 	startIdx := int(start)
-	tagEnd, ok := dollarTagEnd(runes, startIdxParam(startIdx))
+	tagEnd, ok := dollarTagEnd(runes, start)
 	if !ok {
 		return quotedString(""), runeCount(0)
 	}
 
 	tag := string(runes[startIdx : tagEnd+1])
-	end := findClosingTag(runes, fromParam(tagEnd+1), tagParam(tag))
+	end := findClosingTag(runes, runeIndex(tagEnd+1), dollarTag(tag))
 	if end < 0 {
 		return quotedString(""), runeCount(0)
 	}
@@ -386,15 +383,12 @@ func scanDollarQuote(runes []rune, start runeIndex) (quotedString, runeCount) {
 	return quotedString(string(runes[startIdx:end])), runeCount(end - startIdx)
 }
 
-// startIdxParam names the startIdx parameter of dollarTagEnd; rename it to the real domain concept.
-type startIdxParam int
-
 // dollarTagEnd returns the index of the closing $ of a dollar-quote opening tag,
 // or false when the tag is malformed or never terminates.
-func dollarTagEnd(runes []rune, startIdx startIdxParam) (int, bool) {
+func dollarTagEnd(runes []rune, startIdx runeIndex) (int, bool) {
 	tagEnd := int(startIdx) + 1
 	for tagEnd < len(runes) && runes[tagEnd] != '$' {
-		if !isTagChar(rParam(runes[tagEnd])) {
+		if !isTagChar(runeType(runes[tagEnd])) {
 			return 0, false
 		}
 		tagEnd++
@@ -405,23 +399,17 @@ func dollarTagEnd(runes []rune, startIdx startIdxParam) (int, bool) {
 	return tagEnd, true
 }
 
-// rParam names the r parameter of isTagChar; rename it to the real domain concept.
-type rParam rune
-
 // isTagChar says whether r is allowed inside a dollar-quote tag.
-func isTagChar(r rParam) bool {
+func isTagChar(r runeType) bool {
 	return unicode.IsLetter(rune(r)) || unicode.IsDigit(rune(r)) || rune(r) == '_'
 }
 
-// fromParam names the from parameter of findClosingTag; rename it to the real domain concept.
-type fromParam int
-
-// tagParam names the tag parameter of findClosingTag; rename it to the real domain concept.
-type tagParam string
+// dollarTag is the delimiter tag of a dollar-quoted literal, dollar signs included ($tag$).
+type dollarTag string
 
 // findClosingTag returns the index just past the closing tag at or after from, or
 // -1 if the tag never shows up again.
-func findClosingTag(runes []rune, from fromParam, tag tagParam) int {
+func findClosingTag(runes []rune, from runeIndex, tag dollarTag) int {
 	tagLen := len([]rune(string(tag)))
 	for i := int(from); i < len(runes); i++ {
 		if i+tagLen <= len(runes) && string(runes[i:i+tagLen]) == string(tag) {
@@ -434,11 +422,10 @@ func findClosingTag(runes []rune, from fromParam, tag tagParam) int {
 // scanString scans a single- or double-quoted literal, handling doubled-quote and
 // backslash escapes. If the literal never closes, it eats the rest of the runes.
 func scanString(runes []rune, start runeIndex, quote runeType) (quotedString, runeCount) {
-	quoteRune := rune(quote)
 	startIdx := int(start)
 
 	for i := startIdx + 1; i < len(runes); {
-		end, next := stringStep(runes, iParam(i), quoteParam(quoteRune))
+		end, next := stringStep(runes, runeIndex(i), quote)
 		if end >= 0 {
 			return quotedString(string(runes[startIdx:end])), runeCount(end - startIdx)
 		}
@@ -448,15 +435,9 @@ func scanString(runes []rune, start runeIndex, quote runeType) (quotedString, ru
 	return quotedString(string(runes[startIdx:])), runeCount(len(runes) - startIdx)
 }
 
-// iParam names the i parameter of stringStep; rename it to the real domain concept.
-type iParam int
-
-// quoteParam names the quote parameter of stringStep; rename it to the real domain concept.
-type quoteParam rune
-
 // stringStep looks at the rune at i. It returns a non-negative end index when the
 // literal closes at i; otherwise end is -1 and next is where to pick back up.
-func stringStep(runes []rune, i iParam, quote quoteParam) (end, next int) {
+func stringStep(runes []rune, i runeIndex, quote runeType) (end, next int) {
 	if runes[int(i)] == rune(quote) {
 		if isDoubledQuote(runes, i, quote) {
 			return -1, int(i) + 2
@@ -470,12 +451,12 @@ func stringStep(runes []rune, i iParam, quote quoteParam) (end, next int) {
 }
 
 // isDoubledQuote says whether a doubled quote (an escaped quote) sits at i.
-func isDoubledQuote(runes []rune, i iParam, quote quoteParam) bool {
+func isDoubledQuote(runes []rune, i runeIndex, quote runeType) bool {
 	return int(i)+1 < len(runes) && runes[int(i)+1] == rune(quote)
 }
 
 // isBackslashEscape says whether a backslash escape sits at i inside a
 // single-quoted literal.
-func isBackslashEscape(runes []rune, i iParam, quote quoteParam) bool {
+func isBackslashEscape(runes []rune, i runeIndex, quote runeType) bool {
 	return rune(quote) == '\'' && runes[int(i)] == '\\' && int(i)+1 < len(runes)
 }

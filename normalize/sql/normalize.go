@@ -74,17 +74,14 @@ func normalizeWithOptions(code SQL, isSortColumns sortColumnsEnabled, deparse de
 		return normalizeWhitespace(code)
 	}
 
-	return trimCanonical(sParam(string(deparsed)))
+	return trimCanonical(deparsed)
 }
 
 // normalizeWhitespace squashes runs of whitespace down to single spaces and trims
 // trailing semicolons. It's the fallback we use when parsing fails.
 func normalizeWhitespace(code SQL) SQL {
-	return trimCanonical(sParam(strings.Join(strings.Fields(string(code)), " ")))
+	return trimCanonical(sql.SQL(strings.Join(strings.Fields(string(code)), " ")))
 }
-
-// sParam names the s parameter of trimCanonical; rename it to the real domain concept.
-type sParam string
 
 // trimCanonical strips surrounding whitespace and every trailing semicolon —
 // each a meaningless empty statement — along with any whitespace padding them.
@@ -92,6 +89,6 @@ type sParam string
 // semicolon) keeps the result canonical and idempotent: inputs like "0 ;" and
 // "0 ;;" both settle on "0" in a single pass instead of leaving a stray space or
 // a residual trailing semicolon for a second pass to clean up.
-func trimCanonical(s sParam) SQL {
+func trimCanonical(s sql.SQL) SQL {
 	return SQL(strings.TrimSpace(strings.TrimRight(strings.TrimSpace(string(s)), "; \t\n\r\f\v")))
 }

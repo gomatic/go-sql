@@ -326,10 +326,10 @@ func toSnakeCase(input stringValue) stringValue {
 	s := string(input)
 	result := make([]rune, 0, len(s)+4)
 	for i, r := range s {
-		if i > 0 && isUpper(rParam(r)) && !isUpper(rParam(rune(s[i-1]))) {
+		if i > 0 && isUpper(nameRune(r)) && !isUpper(nameRune(rune(s[i-1]))) {
 			result = append(result, '_')
 		}
-		if isUpper(rParam(r)) {
+		if isUpper(nameRune(r)) {
 			r += 'a' - 'A'
 		}
 		result = append(result, r)
@@ -337,8 +337,8 @@ func toSnakeCase(input stringValue) stringValue {
 	return stringValue(result)
 }
 
-// rParam names the r parameter of isUpper; rename it to the real domain concept.
-type rParam rune
+// nameRune is one rune of a PascalCase or camelCase name being case-converted.
+type nameRune rune
 
 // isUpper tells you whether r is an ASCII uppercase letter.
-func isUpper(r rParam) bool { return rune(r) >= 'A' && rune(r) <= 'Z' }
+func isUpper(r nameRune) bool { return rune(r) >= 'A' && rune(r) <= 'Z' }

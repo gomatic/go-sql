@@ -114,7 +114,7 @@ func nodeTypeName(n any) string {
 	if idx := strings.LastIndex(typeName, "."); idx >= 0 {
 		typeName = typeName[idx+1:]
 	}
-	return toSnakeCase(sParam(strings.TrimPrefix(typeName, "Node_")))
+	return toSnakeCase(goName(strings.TrimPrefix(typeName, "Node_")))
 }
 
 type fieldInfo struct {
@@ -157,7 +157,7 @@ func structFields(v reflect.Value) []fieldInfo {
 			continue
 		}
 		if normalized := normalizeValue(fieldValue); !isZeroValue(normalized) {
-			fields = append(fields, fieldInfo{name: toSnakeCase(sParam(typ.Field(i).Name)), value: normalized})
+			fields = append(fields, fieldInfo{name: toSnakeCase(goName(typ.Field(i).Name)), value: normalized})
 		}
 	}
 	return fields
@@ -257,27 +257,27 @@ func isZeroValue(v any) bool {
 	}
 }
 
-// sParam names the s parameter of toSnakeCase; rename it to the real domain concept.
-type sParam string
+// goName is a PascalCase Go type or field name to convert to a snake_case JSON key.
+type goName string
 
-func toSnakeCase(s sParam) string {
+func toSnakeCase(s goName) string {
 	var result []rune
 	for i, r := range string(s) {
-		if i > 0 && isUpper(rParam(r)) && !isUpper(rParam(rune(string(s)[i-1]))) {
+		if i > 0 && isUpper(nameRune(r)) && !isUpper(nameRune(rune(string(s)[i-1]))) {
 			result = append(result, '_')
 		}
-		result = append(result, toLower(rParam(r)))
+		result = append(result, toLower(nameRune(r)))
 	}
 	return string(result)
 }
 
-// rParam names the r parameter of isUpper; rename it to the real domain concept.
-type rParam rune
+// nameRune is one rune of a Go name being converted to snake_case.
+type nameRune rune
 
-func isUpper(r rParam) bool { return rune(r) >= 'A' && rune(r) <= 'Z' }
+func isUpper(r nameRune) bool { return rune(r) >= 'A' && rune(r) <= 'Z' }
 
-func toLower(r rParam) rune {
-	if isUpper(rParam(rune(r))) {
+func toLower(r nameRune) rune {
+	if isUpper(nameRune(rune(r))) {
 		return rune(r) + ('a' - 'A')
 	}
 	return rune(r)

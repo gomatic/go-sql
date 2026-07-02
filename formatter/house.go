@@ -63,8 +63,8 @@ func selectLines(sel *pg_query.SelectStmt) ([]string, bool) {
 	if !ok {
 		return nil, false
 	}
-	lines := leadingComma(keywordParam("select"), targets)
-	lines = append(lines, leadingComma(keywordParam("from"), from)...)
+	lines := leadingComma(clauseKeyword("select"), targets)
+	lines = append(lines, leadingComma(clauseKeyword("from"), from)...)
 	return append(lines, where...), true
 }
 
@@ -182,12 +182,12 @@ func clauseLines(first, rest string, conditions []*pg_query.Node) ([]string, boo
 	return lines, true
 }
 
-// keywordParam names the keyword parameter of leadingComma; rename it to the real domain concept.
-type keywordParam string
+// clauseKeyword is the SQL clause keyword that leads a river-aligned block (select, from, …).
+type clauseKeyword string
 
 // leadingComma renders items under a clause keyword: the first on the keyword's
 // line, each subsequent one on its own line led by a comma aligned to the river.
-func leadingComma(keyword keywordParam, items []string) []string {
+func leadingComma(keyword clauseKeyword, items []string) []string {
 	if len(items) == 0 {
 		return nil
 	}
