@@ -68,7 +68,7 @@ func TestCanonicalStatementFalseWhenDeparseFails(t *testing.T) {
 func TestCanonicalStatementFalseWhenLowerFails(t *testing.T) {
 	const boom errs.Const = "boom"
 	ok := func(*pg_query.ParseResult) (string, error) { return "select a", nil }
-	failing := func(string) (sql.SQL, error) { return "", boom }
+	failing := func(sql.SQL) (sql.SQL, error) { return "", boom }
 	if _, got := canonicalStatementWith(ok, failing, oneStatement(t, "select a")); got {
 		t.Fatal("want false when lowering fails")
 	}

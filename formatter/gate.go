@@ -13,10 +13,10 @@ type originalSQL string
 // changing its meaning or its comments, falling back to original verbatim when
 // none is safe. This is what keeps the formatter from ever corrupting SQL: a
 // candidate it can't prove equivalent is simply not used.
-func chooseFormatted(original originalSQL, candidates ...string) string {
+func chooseFormatted(original originalSQL, candidates ...sql.SQL) string {
 	for _, candidate := range candidates {
-		if preservesMeaning(string(original), candidate) {
-			return candidate
+		if preservesMeaning(original, candidate) {
+			return string(candidate)
 		}
 	}
 	return string(original)
@@ -26,16 +26,16 @@ func chooseFormatted(original originalSQL, candidates ...string) string {
 // up to formatting: identical PostgreSQL fingerprints and the same multiset of
 // comments. A candidate that doesn't parse, or whose fingerprint or comments
 // differ, is not preserving.
-func preservesMeaning(original, candidate string) bool {
+func preservesMeaning(original originalSQL, candidate sql.SQL) bool {
 	originalFP, err := sql.Fingerprint(sql.SQL(original))
 	if err != nil {
 		return false
 	}
-	candidateFP, err := sql.Fingerprint(sql.SQL(candidate))
+	candidateFP, err := sql.Fingerprint(candidate)
 	if err != nil || originalFP != candidateFP {
 		return false
 	}
-	return commentsEqual(sql.SQL(original), sql.SQL(candidate))
+	return commentsEqual(sql.SQL(original), candidate)
 }
 
 // commentsEqual reports whether two SQL texts carry the same multiset of

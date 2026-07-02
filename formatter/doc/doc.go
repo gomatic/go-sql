@@ -36,9 +36,12 @@ type Doc struct {
 	kind     kind
 }
 
+// Literal is the verbatim text a [Text] document renders as.
+type Literal string
+
 // Text is a document that renders literally as s, on a single line.
-func Text(s string) Doc {
-	return Doc{kind: kindText, text: s}
+func Text(s Literal) Doc {
+	return Doc{kind: kindText, text: string(s)}
 }
 
 // Concat is the documents rendered one after another with nothing between them.
@@ -87,16 +90,19 @@ type frame struct {
 	mode   mode
 }
 
+// Width is the column budget a rendered line must fit within.
+type Width int
+
 // Render lays d out as text, breaking groups that would otherwise exceed width
 // columns.
-func Render(d Doc, width int) string {
+func Render(d Doc, width Width) string {
 	var out strings.Builder
 	col := 0
 	stack := []frame{{doc: d, indent: 0, mode: modeBreak}}
 	for len(stack) > 0 {
 		top := stack[len(stack)-1]
 		stack = stack[:len(stack)-1]
-		col, stack = step(&out, top, column(col), stack, lineWidth(width))
+		col, stack = step(&out, top, column(col), stack, width)
 	}
 	return out.String()
 }
@@ -104,12 +110,9 @@ func Render(d Doc, width int) string {
 // column is the output column the renderer is currently at.
 type column int
 
-// lineWidth is the column budget a rendered line must fit within.
-type lineWidth int
-
 // step emits one frame, pushing any children back onto the stack, and reports
 // the new column and stack.
-func step(out *strings.Builder, f frame, col column, stack []frame, width lineWidth) (int, []frame) {
+func step(out *strings.Builder, f frame, col column, stack []frame, width Width) (int, []frame) {
 	switch f.kind() {
 	case kindText:
 		_, _ = out.WriteString(f.doc.text)
@@ -117,7 +120,7 @@ func step(out *strings.Builder, f frame, col column, stack []frame, width lineWi
 	case kindConcat, kindIndent:
 		return int(col), pushChildren(f, stack)
 	case kindGroup:
-		return int(col), pushGroup(f, stack, int(width), int(col))
+		return int(col), pushGroup(f, stack, width, col)
 	default:
 		return emitLine(out, f, col), stack
 	}
@@ -141,11 +144,11 @@ func pushChildren(f frame, stack []frame) []frame {
 
 // pushGroup chooses flat or broken for the group's child and pushes it. A child
 // that carries a hardline always breaks; otherwise it stays flat when it fits.
-func pushGroup(f frame, stack []frame, width, col int) []frame {
+func pushGroup(f frame, stack []frame, width Width, col column) []frame {
 	child := f.doc.children[0]
 	groupMode := modeBreak
 	flat := frame{doc: child, indent: f.indent, mode: modeFlat}
-	if !hasHardline(child) && fits(width-col, flat, stack) {
+	if !hasHardline(child) && fits(remainingWidth(int(width)-int(col)), flat, stack) {
 		groupMode = modeFlat
 	}
 	return append(stack, frame{doc: child, indent: f.indent, mode: groupMode})
@@ -168,13 +171,15 @@ func hasHardline(d Doc) bool {
 // fits reports whether the flat layout of f, followed by the continuation in
 // rest, stays within remaining columns up to the first newline. A line in break
 // mode or a hardline is that newline: everything up to it fits.
-func fits(remaining int, f frame, rest []frame) bool {
+func fits(remaining remainingWidth, f frame, rest []frame) bool {
 	stack := append(append([]frame{}, rest...), f)
 	for remaining >= 0 && len(stack) > 0 {
 		top := stack[len(stack)-1]
 		stack = stack[:len(stack)-1]
 		var newline bool
-		remaining, stack, newline = fitsStep(top, remainingWidth(remaining), stack)
+		var left int
+		left, stack, newline = fitsStep(top, remaining, stack)
+		remaining = remainingWidth(left)
 		if newline {
 			return true
 		}

@@ -44,10 +44,10 @@ type Diff struct {
 func diffStatements(reg registry, source, target stmtsByID) Result {
 	var result Result
 	for _, e := range sortedByIndex(source) {
-		classifySource(reg, e.id, e.stmt, target, &result)
+		result = classifySource(reg, e.id, e.stmt, target, result)
 	}
 	for _, e := range sortedByIndex(target) {
-		appendIfAdded(e.id, e.stmt, source, &result)
+		result = appendIfAdded(e.id, e.stmt, source, result)
 	}
 	return result
 }
@@ -72,25 +72,29 @@ func sortedByIndex(m stmtsByID) []indexedEntry {
 }
 
 // classifySource marks a source statement removed when the target doesn't have
-// it, or changed when the paired target statement differs.
-func classifySource(reg registry, id identity, src indexedStatement, target stmtsByID, result *Result) {
+// it, or changed when the paired target statement differs, returning the grown
+// result.
+func classifySource(reg registry, id identity, src indexedStatement, target stmtsByID, result Result) Result {
 	tgt, paired := target[id]
 	if !paired {
 		result.Removed = append(result.Removed, fullStatement(id, src.stmt))
-		return
+		return result
 	}
 	stmtType := statementType(src.stmt)
 	if diffs := reg.diff(stmtType, src.stmt, tgt.stmt); len(diffs) > 0 {
 		result.Changed = append(result.Changed, changedStatement(id, stmtType, diffs))
 	}
+	return result
 }
 
-// appendIfAdded marks a target statement added when the source doesn't have it.
-func appendIfAdded(id identity, tgt indexedStatement, source stmtsByID, result *Result) {
+// appendIfAdded marks a target statement added when the source doesn't have it,
+// returning the grown result.
+func appendIfAdded(id identity, tgt indexedStatement, source stmtsByID, result Result) Result {
 	if _, paired := source[id]; paired {
-		return
+		return result
 	}
 	result.Added = append(result.Added, fullStatement(id, tgt.stmt))
+	return result
 }
 
 // fullStatement builds an added/removed entry that carries the whole statement.

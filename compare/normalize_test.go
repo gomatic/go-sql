@@ -534,8 +534,7 @@ func TestComputeValueDiffs(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(string(tt.name), func(t *testing.T) {
 			t.Parallel()
-			var diffs statementDiffs
-			computeValueDiffs("test", tt.source, tt.target, &diffs)
+			diffs := computeValueDiffs("test", tt.source, tt.target, nil)
 			if tt.expectDiffs {
 				want.NotEmpty(diffs)
 			} else {
@@ -579,8 +578,7 @@ func TestComputeSliceDiffs(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(string(tt.name), func(t *testing.T) {
 			t.Parallel()
-			var diffs statementDiffs
-			computeSliceDiffs("test", tt.source, tt.target, &diffs)
+			diffs := computeSliceDiffs("test", tt.source, tt.target, nil)
 			if !tt.expectDiffs {
 				want.Empty(diffs)
 				return

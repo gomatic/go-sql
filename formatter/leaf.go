@@ -52,7 +52,7 @@ func selectWrap(node *pg_query.Node) *pg_query.ParseResult {
 // lowerFunc is [sql.LowerKeywords]' signature. We inject it so a test can drive
 // the lowering-failure path, which deparse output (always valid SQL) never
 // reaches in practice.
-type lowerFunc func(string) (sql.SQL, error)
+type lowerFunc func(sql.SQL) (sql.SQL, error)
 
 // canonicalStatement renders one statement through PostgreSQL's deparser and
 // lowercases its keywords — correct for every statement kind, the fallback the
@@ -69,7 +69,7 @@ func canonicalStatementWith(deparse rawDeparser, lower lowerFunc, stmt *pg_query
 	if err != nil {
 		return "", false
 	}
-	lowered, err := lower(deparsed)
+	lowered, err := lower(sql.SQL(deparsed))
 	if err != nil {
 		return "", false
 	}

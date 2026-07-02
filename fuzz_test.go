@@ -52,11 +52,11 @@ func FuzzLowerKeywords(f *testing.F) {
 		f.Add(s)
 	}
 	f.Fuzz(func(t *testing.T, in string) {
-		once, err := sql.LowerKeywords(in)
+		once, err := sql.LowerKeywords(sql.SQL(in))
 		if err != nil {
 			return
 		}
-		twice, err := sql.LowerKeywords(string(once))
+		twice, err := sql.LowerKeywords(once)
 		if err != nil {
 			t.Fatalf("re-lowering already-lowered SQL %q failed: %v", once, err)
 		}

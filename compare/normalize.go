@@ -89,16 +89,16 @@ func computeDiffs(source, target statementData) statementDiffs {
 	if statementsAreEqual(source, target) {
 		return nil
 	}
-	var diffs statementDiffs
-	computeMapDiffs("", normalizeStatement(source), normalizeStatement(target), &diffs)
-	return diffs
+	return computeMapDiffs("", normalizeStatement(source), normalizeStatement(target), nil)
 }
 
-// computeMapDiffs records the differences between two maps, under prefix.
-func computeMapDiffs(prefix fieldPath, source, target map[string]any, diffs *statementDiffs) {
+// computeMapDiffs appends the differences between two maps, under prefix, and
+// returns the grown diff list.
+func computeMapDiffs(prefix fieldPath, source, target map[string]any, diffs statementDiffs) statementDiffs {
 	for _, key := range sortedKeys(source, target) {
-		processKey(prefix, key, source, target, diffs)
+		diffs = processKey(prefix, key, source, target, diffs)
 	}
+	return diffs
 }
 
 // sortedKeys returns the union of both maps' keys, in stable order.
@@ -118,21 +118,19 @@ func sortedKeys(source, target map[string]any) []mapKey {
 	return keys
 }
 
-// processKey records the difference for one key — whether that's a presence
-// difference or a value difference.
-func processKey(prefix fieldPath, key mapKey, source, target map[string]any, diffs *statementDiffs) {
+// processKey appends the difference for one key — whether that's a presence
+// difference or a value difference — and returns the grown diff list.
+func processKey(prefix fieldPath, key mapKey, source, target map[string]any, diffs statementDiffs) statementDiffs {
 	path := buildFieldPath(prefix, key)
 	sourceVal, sourceExists := source[string(key)]
 	targetVal, targetExists := target[string(key)]
 	if !sourceExists {
-		*diffs = append(*diffs, fieldDiff{Field: path, Source: nil, Target: targetVal})
-		return
+		return append(diffs, fieldDiff{Field: path, Source: nil, Target: targetVal})
 	}
 	if !targetExists {
-		*diffs = append(*diffs, fieldDiff{Field: path, Source: sourceVal, Target: nil})
-		return
+		return append(diffs, fieldDiff{Field: path, Source: sourceVal, Target: nil})
 	}
-	computeValueDiffs(path, sourceVal, targetVal, diffs)
+	return computeValueDiffs(path, sourceVal, targetVal, diffs)
 }
 
 // buildFieldPath joins a prefix and a key into a dotted path.
@@ -143,62 +141,60 @@ func buildFieldPath(prefix fieldPath, key mapKey) fieldPath {
 	return fieldPath(string(prefix) + "." + string(key))
 }
 
-// computeValueDiffs records the difference between two values sitting at path.
-func computeValueDiffs(path fieldPath, source, target any, diffs *statementDiffs) {
+// computeValueDiffs appends the difference between two values sitting at path
+// and returns the grown diff list.
+func computeValueDiffs(path fieldPath, source, target any, diffs statementDiffs) statementDiffs {
 	if source == nil || target == nil {
-		appendPresenceDiff(path, source, target, diffs)
-		return
+		return appendPresenceDiff(path, source, target, diffs)
 	}
-	if diffComposite(path, source, target, diffs) {
-		return
+	if grown, handled := diffComposite(path, source, target, diffs); handled {
+		return grown
 	}
 	if !reflect.DeepEqual(source, target) {
-		*diffs = append(*diffs, fieldDiff{Field: path, Source: source, Target: target})
+		return append(diffs, fieldDiff{Field: path, Source: source, Target: target})
 	}
+	return diffs
 }
 
-// appendPresenceDiff records a diff when only one side actually has the value.
-func appendPresenceDiff(path fieldPath, source, target any, diffs *statementDiffs) {
+// appendPresenceDiff appends a diff when only one side actually has the value.
+func appendPresenceDiff(path fieldPath, source, target any, diffs statementDiffs) statementDiffs {
 	if source == nil && target == nil {
-		return
+		return diffs
 	}
-	*diffs = append(*diffs, fieldDiff{Field: path, Source: source, Target: target})
+	return append(diffs, fieldDiff{Field: path, Source: source, Target: target})
 }
 
-// diffComposite handles map and slice values, and tells you whether it took
-// care of them.
-func diffComposite(path fieldPath, source, target any, diffs *statementDiffs) bool {
+// diffComposite handles map and slice values: the grown diff list plus whether
+// it took care of them.
+func diffComposite(path fieldPath, source, target any, diffs statementDiffs) (statementDiffs, bool) {
 	if sourceMap, ok := source.(map[string]any); ok {
 		if targetMap, ok := target.(map[string]any); ok {
-			computeMapDiffs(path, sourceMap, targetMap, diffs)
-			return true
+			return computeMapDiffs(path, sourceMap, targetMap, diffs), true
 		}
 	}
 	if sourceSlice, ok := source.([]any); ok {
 		if targetSlice, ok := target.([]any); ok {
-			computeSliceDiffs(path, sourceSlice, targetSlice, diffs)
-			return true
+			return computeSliceDiffs(path, sourceSlice, targetSlice, diffs), true
 		}
 	}
-	return false
+	return diffs, false
 }
 
-// computeSliceDiffs records the difference between two slices. If the slices are
-// the same length and hold the same elements but in a different order, we report
-// that as an order change — SQL column order actually matters.
-func computeSliceDiffs(path fieldPath, source, target []any, diffs *statementDiffs) {
+// computeSliceDiffs appends the difference between two slices and returns the
+// grown diff list. If the slices are the same length and hold the same elements
+// but in a different order, we report that as an order change — SQL column
+// order actually matters.
+func computeSliceDiffs(path fieldPath, source, target []any, diffs statementDiffs) statementDiffs {
 	if len(source) != len(target) {
-		*diffs = append(*diffs, fieldDiff{Field: path, Source: source, Target: target})
-		return
+		return append(diffs, fieldDiff{Field: path, Source: source, Target: target})
 	}
 	if sameOrder(source, target) {
-		return
+		return diffs
 	}
 	if slicesHaveSameElements(source, target) {
-		*diffs = append(*diffs, reorderDiff(path))
-		return
+		return append(diffs, reorderDiff(path))
 	}
-	diffSliceElements(path, source, target, diffs)
+	return diffSliceElements(path, source, target, diffs)
 }
 
 // sameOrder tells you whether two equal-length slices match element by element.
@@ -221,13 +217,14 @@ func reorderDiff(path fieldPath) fieldDiff {
 	}
 }
 
-// diffSliceElements records element-by-element differences for slices that don't
-// match.
-func diffSliceElements(path fieldPath, source, target []any, diffs *statementDiffs) {
+// diffSliceElements appends element-by-element differences for slices that don't
+// match and returns the grown diff list.
+func diffSliceElements(path fieldPath, source, target []any, diffs statementDiffs) statementDiffs {
 	for i := range source {
 		itemPath := fieldPath(string(path) + "[" + strconv.Itoa(i) + "]")
-		computeValueDiffs(itemPath, source[i], target[i], diffs)
+		diffs = computeValueDiffs(itemPath, source[i], target[i], diffs)
 	}
+	return diffs
 }
 
 // slicesHaveSameElements tells you whether two slices hold the same multiset of

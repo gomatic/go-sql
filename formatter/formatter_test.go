@@ -41,7 +41,7 @@ func TestFormatRendersEveryStatementKindFaithfully(t *testing.T) {
 	t.Parallel()
 	out, err := New().Format("set search_path = x")
 	require.NoError(t, err)
-	assert.True(t, preservesMeaning("set search_path = x", out))
+	assert.True(t, preservesMeaning("set search_path = x", sql.SQL(out)))
 }
 
 func TestFormatPreservesCommentsByEmittingVerbatim(t *testing.T) {

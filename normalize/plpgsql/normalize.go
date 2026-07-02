@@ -97,9 +97,9 @@ func scanStructured(
 	case r == '\'' || r == '"':
 		return scanQuoteToken(runes, result, i, isHad, runeType(r))
 	case isLineCommentStart(runes, i):
-		return runeIndex(skipLineComment(runes, idx)), hasWhitespace(true), true
+		return skipLineComment(runes, i), hasWhitespace(true), true
 	case isBlockCommentStart(runes, i):
-		return runeIndex(skipBlockComment(runes, idx)), hasWhitespace(true), true
+		return skipBlockComment(runes, i), hasWhitespace(true), true
 	default:
 		return 0, false, false
 	}
@@ -158,14 +158,15 @@ func isLineCommentStart(runes []rune, idx runeIndex) bool {
 
 // skipLineComment returns the position past the line comment at idx, newline and
 // all.
-func skipLineComment(runes []rune, idx int) int {
-	for idx < len(runes) && runes[idx] != '\n' {
-		idx++
+func skipLineComment(runes []rune, idx runeIndex) runeIndex {
+	i := int(idx)
+	for i < len(runes) && runes[i] != '\n' {
+		i++
 	}
-	if idx < len(runes) {
-		idx++
+	if i < len(runes) {
+		i++
 	}
-	return idx
+	return runeIndex(i)
 }
 
 // isBlockCommentStart says whether a block comment opens at idx.
@@ -173,36 +174,40 @@ func isBlockCommentStart(runes []rune, idx runeIndex) bool {
 	return int(idx)+1 < len(runes) && runes[int(idx)] == '/' && runes[int(idx)+1] == '*'
 }
 
+// commentDepth is the nesting depth inside a block comment.
+type commentDepth int
+
 // skipBlockComment returns the position past a possibly nested block comment.
-func skipBlockComment(runes []rune, idx int) int {
-	idx += 2
-	depth := 1
-	for idx < len(runes) && depth > 0 {
-		idx, depth = stepBlockComment(runes, idx, depth)
+func skipBlockComment(runes []rune, idx runeIndex) runeIndex {
+	i := runeIndex(int(idx) + 2)
+	depth := commentDepth(1)
+	for int(i) < len(runes) && depth > 0 {
+		i, depth = stepBlockComment(runes, i, depth)
 	}
-	return idx
+	return i
 }
 
 // stepBlockComment moves one step through a block comment, bumping nesting depth
 // up or down when it hits an opening or closing delimiter.
-func stepBlockComment(runes []rune, idx, depth int) (int, int) {
-	if idx+1 < len(runes) {
+func stepBlockComment(runes []rune, idx runeIndex, depth commentDepth) (runeIndex, commentDepth) {
+	i := int(idx)
+	if i+1 < len(runes) {
 		switch {
-		case runes[idx] == '/' && runes[idx+1] == '*':
-			return idx + 2, depth + 1
-		case runes[idx] == '*' && runes[idx+1] == '/':
-			return idx + 2, depth - 1
+		case runes[i] == '/' && runes[i+1] == '*':
+			return runeIndex(i + 2), depth + 1
+		case runes[i] == '*' && runes[i+1] == '/':
+			return runeIndex(i + 2), depth - 1
 		}
 	}
-	return idx + 1, depth
+	return runeIndex(i + 1), depth
 }
 
 // spacingContext is the immutable input we feed to the spacing rules.
 type spacingContext struct {
-	last   runeType
-	penult runeType
-	curr   runeType
-	had    hasWhitespace
+	last     runeType
+	penult   runeType
+	curr     runeType
+	hasSpace hasWhitespace
 }
 
 // spacingRules is the ordered set of rules we consult to decide whether a space
@@ -225,10 +230,10 @@ func addSpaceIfNeeded(result *strings.Builder, isHad hasWhitespace, curr runeTyp
 	}
 	written := normalizedText(result.String())
 	ctx := spacingContext{
-		last:   getLastRune(written),
-		penult: getPenultimateRune(written),
-		curr:   curr,
-		had:    isHad,
+		last:     getLastRune(written),
+		penult:   getPenultimateRune(written),
+		curr:     curr,
+		hasSpace: isHad,
 	}
 	if spaceWanted(ctx) {
 		emit(result, emittedText(" "))
@@ -243,7 +248,7 @@ func spaceWanted(ctx spacingContext) bool {
 			return d == spaceYes
 		}
 	}
-	return bool(ctx.had)
+	return bool(ctx.hasSpace)
 }
 
 // ruleAfterSeparator forces a space after a comma or semicolon, unless the next

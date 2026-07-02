@@ -38,7 +38,7 @@ func houseStatement(stmt *pg_query.RawStmt) (string, bool) {
 	if !ok {
 		return "", false
 	}
-	lowered, err := houseLower(strings.Join(lines, "\n"))
+	lowered, err := houseLower(sql.SQL(strings.Join(lines, "\n")))
 	if err != nil {
 		return "", false
 	}
@@ -151,7 +151,7 @@ func whereLines(where *pg_query.Node) ([]string, bool) {
 	if err != nil {
 		return nil, false
 	}
-	return []string{riverLine("where", text)}, true
+	return []string{riverLine("where", clauseContent(text))}, true
 }
 
 // andConditions returns the operands of a top-level AND, or false for any other
@@ -166,7 +166,7 @@ func andConditions(where *pg_query.Node) ([]*pg_query.Node, bool) {
 
 // clauseLines renders conditions with first on a `first` line and the rest on
 // `rest` lines, or false if any condition won't deparse.
-func clauseLines(first, rest string, conditions []*pg_query.Node) ([]string, bool) {
+func clauseLines(first, rest clauseKeyword, conditions []*pg_query.Node) ([]string, bool) {
 	lines := make([]string, 0, len(conditions))
 	for i, condition := range conditions {
 		text, err := leafDeparse(condition)
@@ -177,7 +177,7 @@ func clauseLines(first, rest string, conditions []*pg_query.Node) ([]string, boo
 		if i == 0 {
 			keyword = first
 		}
-		lines = append(lines, riverLine(keyword, text))
+		lines = append(lines, riverLine(keyword, clauseContent(text)))
 	}
 	return lines, true
 }
@@ -185,20 +185,23 @@ func clauseLines(first, rest string, conditions []*pg_query.Node) ([]string, boo
 // clauseKeyword is the SQL clause keyword that leads a river-aligned block (select, from, …).
 type clauseKeyword string
 
+// clauseContent is the rendered text that follows a river keyword on its line.
+type clauseContent string
+
 // leadingComma renders items under a clause keyword: the first on the keyword's
 // line, each subsequent one on its own line led by a comma aligned to the river.
 func leadingComma(keyword clauseKeyword, items []string) []string {
 	if len(items) == 0 {
 		return nil
 	}
-	lines := []string{riverLine(string(keyword), items[0])}
+	lines := []string{riverLine(keyword, clauseContent(items[0]))}
 	for _, item := range items[1:] {
-		lines = append(lines, riverLine(",", item))
+		lines = append(lines, riverLine(",", clauseContent(item)))
 	}
 	return lines
 }
 
 // riverLine right-aligns keyword into the river field and follows it with content.
-func riverLine(keyword, content string) string {
-	return fmt.Sprintf("%*s %s", riverWidth, keyword, content)
+func riverLine(keyword clauseKeyword, content clauseContent) string {
+	return fmt.Sprintf("%*s %s", riverWidth, string(keyword), string(content))
 }

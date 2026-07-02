@@ -67,13 +67,13 @@ func formatStatement(query sql.SQL, stmt *pg_query.RawStmt) string {
 
 // candidates lists the renderings to try, best first: the house style if it
 // covers this statement, then the canonical deparse.
-func candidates(stmt *pg_query.RawStmt) []string {
-	candidates := make([]string, 0, 2)
+func candidates(stmt *pg_query.RawStmt) []sql.SQL {
+	candidates := make([]sql.SQL, 0, 2)
 	if house, ok := houseStatement(stmt); ok {
-		candidates = append(candidates, house)
+		candidates = append(candidates, sql.SQL(house))
 	}
 	if canonical, ok := canonicalStatement(stmt); ok {
-		candidates = append(candidates, canonical)
+		candidates = append(candidates, sql.SQL(canonical))
 	}
 	return candidates
 }

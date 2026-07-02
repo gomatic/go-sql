@@ -26,17 +26,17 @@ func Scan(sql SQL) (*pg_query.ScanResult, error) {
 // LowerKeywords lowercases every SQL keyword in text and leaves everything else —
 // string literals, quoted identifiers, dollar-quoted bodies, numbers, operators —
 // exactly as written. A lexical error comes back wrapped in [ErrScan].
-func LowerKeywords(text string) (SQL, error) {
-	result, err := Scan(SQL(text))
+func LowerKeywords(text SQL) (SQL, error) {
+	result, err := Scan(text)
 	if err != nil {
 		return "", err
 	}
 	var out strings.Builder
 	cursor := 0
 	for _, tok := range result.Tokens {
-		cursor = writeToken(&out, SQL(text), tok, sourceOffset(cursor))
+		cursor = writeToken(&out, text, tok, sourceOffset(cursor))
 	}
-	_, _ = out.WriteString(text[cursor:])
+	_, _ = out.WriteString(string(text)[cursor:])
 	return SQL(out.String()), nil
 }
 
