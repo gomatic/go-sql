@@ -2,7 +2,6 @@ package sql
 
 import (
 	errs "github.com/gomatic/go-error"
-	pg_query "github.com/pganalyze/pg_query_go/v6"
 )
 
 // ErrFingerprint means we couldn't fingerprint the SQL text. Match it with
@@ -13,7 +12,7 @@ const ErrFingerprint errs.Const = "fingerprint SQL"
 // that mean the same thing modulo formatting, literal values, and case share a
 // fingerprint. A parse failure comes back wrapped in [ErrFingerprint].
 func Fingerprint(sql SQL) (string, error) {
-	fp, err := pg_query.Fingerprint(string(sql))
+	fp, err := fingerprintSQL(string(sql))
 	if err != nil {
 		return "", ErrFingerprint.With(err)
 	}

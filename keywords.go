@@ -16,7 +16,7 @@ const ErrScan errs.Const = "scan SQL"
 // well-formed statement, but a lexical error (an unterminated string, say) comes
 // back wrapped in [ErrScan].
 func Scan(sql SQL) (*pg_query.ScanResult, error) {
-	result, err := pg_query.Scan(string(sql))
+	result, err := scanSQL(string(sql))
 	if err != nil {
 		return nil, ErrScan.With(err)
 	}

@@ -27,7 +27,7 @@ type rawDeparser func(*pg_query.ParseResult) (string, error)
 // has to hand-render an expression. Keyword case is normalized later, in one pass
 // over the whole statement.
 func deparseNode(node *pg_query.Node) (string, error) {
-	return deparseNodeWith(pg_query.Deparse, node)
+	return deparseNodeWith(deparseTree, node)
 }
 
 // deparseNodeWith is [deparseNode] with its deparser injected. It wraps node in a
@@ -59,7 +59,7 @@ type lowerFunc func(sql.SQL) (sql.SQL, error)
 // gate leans on when a house renderer is missing or unfaithful. It reports false
 // when the statement can't be deparsed, leaving the gate to fall back further.
 func canonicalStatement(stmt *pg_query.RawStmt) (string, bool) {
-	return canonicalStatementWith(pg_query.Deparse, sql.LowerKeywords, stmt)
+	return canonicalStatementWith(deparseTree, sql.LowerKeywords, stmt)
 }
 
 // canonicalStatementWith is [canonicalStatement] with its deparser and lowercaser

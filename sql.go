@@ -35,7 +35,7 @@ type SQL string
 // Parse turns SQL text into PostgreSQL's parse-result AST. If parsing fails, you
 // get back an error wrapped in [ErrParse].
 func Parse(sql SQL) (*pg_query.ParseResult, error) {
-	tree, err := pg_query.Parse(string(sql))
+	tree, err := parseSQL(string(sql))
 	if err != nil {
 		return nil, ErrParse.With(err)
 	}
@@ -45,7 +45,7 @@ func Parse(sql SQL) (*pg_query.ParseResult, error) {
 // Deparse turns an AST back into SQL text. If it fails, you get back an error
 // wrapped in [ErrDeparse].
 func Deparse(tree *pg_query.ParseResult) (SQL, error) {
-	result, err := pg_query.Deparse(tree)
+	result, err := deparseTree(tree)
 	if err != nil {
 		return "", ErrDeparse.With(err)
 	}
