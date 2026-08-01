@@ -121,8 +121,10 @@ func step(out *strings.Builder, f frame, col column, stack []frame, width Width)
 		return int(col), pushChildren(f, stack)
 	case kindGroup:
 		return int(col), pushGroup(f, stack, width, col)
-	default:
+	case kindLine, kindSoftline, kindHardline:
 		return emitLine(out, f, col), stack
+	default:
+		return int(col), stack
 	}
 }
 
@@ -204,6 +206,8 @@ func fitsStep(f frame, remaining remainingWidth, stack []frame) (int, []frame, b
 		return fitsLine(f, remaining, stack)
 	case kindSoftline:
 		return int(remaining), stack, f.mode == modeBreak
+	case kindHardline:
+		return int(remaining), stack, true
 	default:
 		return int(remaining), stack, true
 	}

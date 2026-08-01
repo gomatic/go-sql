@@ -14,19 +14,34 @@ func treeReflect(tree *pg_query.ParseResult) reflect.Value {
 // traverseAndSort walks the AST, sorting the column lists of every INSERT and
 // simple SELECT it runs into. It recurses through pointers, structs, slices, and
 // interfaces.
+// traversableKind is the subset of reflect.Kind that can CONTAIN a value worth
+// sorting. reflect.Kind has two dozen members and all but these four are leaves
+// — an int holds no sub-value to reorder — so a switch listing every one of
+// them would carry twenty arms that do nothing. Naming the domain keeps the
+// switch total over what it actually dispatches on.
+type traversableKind reflect.Kind
+
+const (
+	traversablePointer   = traversableKind(reflect.Pointer)
+	traversableStruct    = traversableKind(reflect.Struct)
+	traversableSlice     = traversableKind(reflect.Slice)
+	traversableInterface = traversableKind(reflect.Interface)
+)
+
 func traverseAndSort(v reflect.Value) {
 	if !v.IsValid() {
 		return
 	}
-	switch v.Kind() {
-	case reflect.Pointer:
+	switch traversableKind(v.Kind()) {
+	case traversablePointer:
 		traversePointer(v)
-	case reflect.Struct:
+	case traversableStruct:
 		traverseStruct(v)
-	case reflect.Slice:
+	case traversableSlice:
 		traverseSlice(v)
-	case reflect.Interface:
+	case traversableInterface:
 		traverseAndSort(v.Elem())
+	default:
 	}
 }
 

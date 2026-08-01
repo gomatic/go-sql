@@ -153,3 +153,38 @@ func TestPushGroupStaysFlatWhenItFits(t *testing.T) {
 		t.Fatalf("a group that does not fit must break: got %q, want %q", got, "a\nb")
 	}
 }
+
+// TestEveryDocKindIsHandledByBothWalks pins that the renderer and the fits
+// measurement agree about every node kind. They are two switches over the same
+// enum, and a kind handled by one but not the other is the sharpest kind of
+// formatter bug: the measurement says a group fits, the renderer emits
+// something wider, and the output silently exceeds the width it was asked for.
+//
+// The check is behavioural rather than structural — each kind is rendered at a
+// width that forces the measurement to matter — so it fails if either switch
+// stops accounting for a kind, not merely if the source stops mentioning it.
+func TestEveryDocKindIsHandledByBothWalks(t *testing.T) {
+	for _, tc := range []struct {
+		name  string
+		wide  string
+		tight string
+		doc   doc.Doc
+	}{
+		{name: "text", doc: doc.Text("abc"), wide: "abc", tight: "abc"},
+		{name: "concat", doc: doc.Concat(doc.Text("a"), doc.Text("b")), wide: "ab", tight: "ab"},
+		{name: "line", doc: doc.Group(doc.Concat(doc.Text("a"), doc.Line(), doc.Text("b"))), wide: "a b", tight: "a\nb"},
+		{name: "softline", doc: doc.Group(doc.Concat(doc.Text("a"), doc.Softline(), doc.Text("b"))), wide: "ab", tight: "a\nb"},
+		{name: "hardline", doc: doc.Group(doc.Concat(doc.Text("a"), doc.Hardline(), doc.Text("b"))), wide: "a\nb", tight: "a\nb"},
+		{name: "indent", doc: doc.Group(doc.Indent(doc.Concat(doc.Text("a"), doc.Line(), doc.Text("b")))), wide: "a b", tight: "a\n  b"},
+		{name: "group", doc: doc.Group(doc.Text("abc")), wide: "abc", tight: "abc"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := doc.Render(tc.doc, 200); got != tc.wide {
+				t.Errorf("wide: got %q, want %q", got, tc.wide)
+			}
+			if got := doc.Render(tc.doc, 1); got != tc.tight {
+				t.Errorf("tight: got %q, want %q", got, tc.tight)
+			}
+		})
+	}
+}
