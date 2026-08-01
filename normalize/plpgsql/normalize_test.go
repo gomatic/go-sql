@@ -1,9 +1,11 @@
 package plpgsql
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestNormalize(t *testing.T) {
@@ -561,4 +563,89 @@ end;`,
 			assert.Equal(t, once, normalize(once))
 		})
 	}
+}
+
+// TestGetLastRuneOnNonEmptyText names the invariant getLastRune documents. Its
+// body indexes runes[len-1] unguarded, so "s is never empty" is not a remark —
+// it is the precondition standing between this package and a panic on attacker-
+// supplied SQL. The claim is only true because addSpaceIfNeeded returns early on
+// an empty builder, which is asserted below.
+func TestGetLastRuneOnNonEmptyText(t *testing.T) {
+	t.Parallel()
+	assert.Equal(t, runeType('c'), getLastRune("abc"))
+	assert.Equal(t, runeType('x'), getLastRune("x"))
+	assert.Equal(t, runeType('é'), getLastRune("café"), "the final RUNE, not the final byte")
+}
+
+// TestAddSpaceIfNeededGuardsTheEmptyBuilder is the other half: it pins the guard
+// that makes getLastRune's precondition hold. Deleting the result.Len() == 0
+// early return turns this into a panic, which is exactly the failure the doc
+// comment asserts cannot happen.
+func TestAddSpaceIfNeededGuardsTheEmptyBuilder(t *testing.T) {
+	t.Parallel()
+	var result strings.Builder
+
+	assert.NotPanics(t, func() { addSpaceIfNeeded(&result, hasWhitespace(true), runeType('a')) })
+	assert.Zero(t, result.Len(), "nothing may be emitted before the first token")
+}
+
+// TestDollarTagEndRejectsAMalformedTag names dollarTagEnd's documented failure
+// answers: a tag holding a character that cannot appear in one, and a tag that
+// never terminates before the input ends.
+func TestDollarTagEndRejectsAMalformedTag(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name  string
+		input string
+	}{
+		{name: "illegal tag character", input: "$ab!$"},
+		{name: "tag never terminates", input: "$abc"},
+		{name: "bare dollar at end", input: "$"},
+	} {
+		_, ok := dollarTagEnd([]rune(tc.input), 0)
+		assert.False(t, ok, tc.name)
+	}
+
+	end, ok := dollarTagEnd([]rune("$tag$body$tag$"), 0)
+	require.True(t, ok)
+	assert.Equal(t, 4, end, "the index of the tag's closing dollar")
+}
+
+// TestFindClosingTagReportsAnAbsentTag names findClosingTag's documented -1: a
+// dollar quote whose closing tag never shows up again is unterminated, and
+// reporting a positive index there would slice past the literal's real end.
+func TestFindClosingTagReportsAnAbsentTag(t *testing.T) {
+	t.Parallel()
+	runes := []rune("$a$ body with no close")
+
+	assert.Equal(t, -1, findClosingTag(runes, 3, "$a$"))
+	assert.Equal(t, 12, findClosingTag([]rune("$a$ body $a$"), 3, "$a$"), "just past the closing tag")
+}
+
+// TestScanStringEatsAnUnclosedLiteral names scanString's documented behaviour at
+// the end of input. Consuming the remainder is what stops an unterminated quote
+// from being rescanned as ordinary tokens, which would let the text inside a
+// broken literal be reinterpreted as SQL.
+func TestScanStringEatsAnUnclosedLiteral(t *testing.T) {
+	t.Parallel()
+	runes := []rune("'unterminated")
+
+	literal, count := scanString(runes, 0, runeType('\''))
+
+	assert.Equal(t, quotedString("'unterminated"), literal)
+	assert.Equal(t, runeCount(len(runes)), count, "every remaining rune is consumed")
+}
+
+// TestEmitAppendsToTheBuilder names emit's contract. emit is the only place in
+// this package that discards an error, so what it does with the text it is given
+// is worth pinning: every fragment lands, in order, unaltered.
+func TestEmitAppendsToTheBuilder(t *testing.T) {
+	t.Parallel()
+	var result strings.Builder
+
+	emit(&result, "select")
+	emit(&result, " ")
+	emit(&result, "1")
+
+	assert.Equal(t, "select 1", result.String())
 }

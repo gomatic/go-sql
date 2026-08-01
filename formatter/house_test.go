@@ -118,7 +118,7 @@ func TestTargetTextsRejectsNonResTarget(t *testing.T) {
 	assert.False(t, ok)
 }
 
-func TestFormatBailsWhenLeafWontDeparse(t *testing.T) {
+func TestLeafDeparseFailureBailsOutOfHouseStyle(t *testing.T) {
 	original := leafDeparse
 	t.Cleanup(func() { leafDeparse = original })
 	leafDeparse = func(*pg_query.Node) (string, error) { return "", boom }

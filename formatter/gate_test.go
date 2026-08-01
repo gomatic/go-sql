@@ -39,7 +39,7 @@ func TestChooseFormattedPicksFirstSafeCandidate(t *testing.T) {
 	}
 }
 
-func TestChooseFormattedFallsBackToOriginalWhenNoneSafe(t *testing.T) {
+func TestOriginalSQLIsReturnedVerbatimWhenNoCandidateIsSafe(t *testing.T) {
 	got := chooseFormatted("-- keep\nselect a from t", "select a from t")
 	if got != "-- keep\nselect a from t" {
 		t.Fatalf("got %q, want the verbatim original", got)

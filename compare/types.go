@@ -45,7 +45,7 @@ const (
 )
 
 // fieldKey names a key inside a decoded statement map. Navigation keys that get
-// reused across handlers live here, so each string is written down exactly once.
+// reused across handlers live here, so each string is written down in a single place.
 type fieldKey string
 
 const (

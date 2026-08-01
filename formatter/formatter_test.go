@@ -90,3 +90,42 @@ func TestStatementSourceClampsOverlongLength(t *testing.T) {
 	stmt := &pg_query.RawStmt{StmtLocation: 0, StmtLen: 999}
 	assert.Equal(t, "select 1", statementSource("select 1", stmt))
 }
+
+// TestFormatIsIdempotent names the invariant statementSeparator documents. The
+// separator carries a semicolon precisely so multi-statement output re-parses as
+// the same statements; drop it and `select 1\n\nselect 2` is a syntax error, so
+// the second pass over the formatter's own output fails or means something else.
+// Formatting an already-formatted query must be a no-op — a canonical form that
+// moves under re-application is not one.
+func TestStatementSeparatorMakesFormatIdempotent(t *testing.T) {
+	t.Parallel()
+	for _, query := range []sql.SQL{
+		"select 1",
+		"SELECT 1; SELECT 2",
+		"select a from t where b = 1;\nselect c from u;",
+		"select 1;;",
+	} {
+		once, err := New().Format(query)
+		require.NoError(t, err, "query %q", query)
+
+		twice, err := New().Format(sql.SQL(once))
+		require.NoError(t, err, "reformatting %q produced unparseable output: %q", query, once)
+		assert.Equal(t, once, twice, "Format is not a fixed point on %q", query)
+	}
+}
+
+// TestStatementSourceKeepsSignificantSpace names pgSpace's invariant: it is
+// EXACTLY the whitespace PostgreSQL's lexer ignores, so a non-ASCII space such as
+// U+00A0 is part of the statement rather than padding around it. Trimming with
+// Go's wider unicode notion would cut a character the server would have read,
+// producing a verbatim fallback that no longer means the same thing.
+func TestPgSpaceExcludesSignificantWhitespace(t *testing.T) {
+	t.Parallel()
+	for _, r := range []rune{' ', ' ', '　'} {
+		assert.NotContains(t, pgSpace, string(r),
+			"U+%04X is significant to pg_query and must not be trimmed as boundary whitespace", r)
+	}
+	for _, r := range []rune{' ', '\t', '\n', '\r', '\f', '\v'} {
+		assert.Contains(t, pgSpace, string(r), "%q is boundary whitespace to PostgreSQL", r)
+	}
+}

@@ -191,11 +191,35 @@ func TestNormalizeWithOptionsParseFailureFallback(t *testing.T) {
 // TestNormalizeWithOptionsDeparseFailureFallback drives the deparse-failure branch
 // with an injected deparser, since with real input a successful parse always
 // deparses cleanly.
-func TestNormalizeWithOptionsDeparseFailureFallback(t *testing.T) {
+func TestDeparseFuncFailureFallsBackToTrimmedInput(t *testing.T) {
 	t.Parallel()
 	failingDeparse := func(*pg_query.ParseResult) (sql.SQL, error) {
 		return "", sql.ErrDeparse
 	}
 	got := normalizeWithOptions(SQL("SELECT  1  FROM  t;"), sortColumnsEnabled(true), failingDeparse)
 	require.Equal(t, SQL("SELECT 1 FROM t"), got)
+}
+
+// TestTrimCanonicalIsIdempotent names the invariant trimCanonical documents:
+// right-trimming semicolons and whitespace TOGETHER settles in a single pass, so
+// a second pass is a no-op. Trimming space-then-one-semicolon instead would leave
+// "0 ;;" as "0 ;" — still holding a stray space and a residual semicolon — and a
+// canonical form that changes when re-applied is not canonical.
+func TestTrimCanonicalIsIdempotent(t *testing.T) {
+	t.Parallel()
+	for _, input := range []sql.SQL{"0 ;", "0 ;;", "  0  ;  ;  ", "0", "", " ; ", "select 1 ;;;"} {
+		once := trimCanonical(input)
+		twice := trimCanonical(sql.SQL(once))
+		assert.Equal(t, once, twice, "trimCanonical(%q) is not a fixed point", input)
+	}
+}
+
+// TestTrimCanonicalSettlesInOnePass pins the specific outputs the doc comment
+// names, so the idempotence above cannot be satisfied by a function that trims
+// nothing at all.
+func TestTrimCanonicalSettlesInOnePass(t *testing.T) {
+	t.Parallel()
+	assert.Equal(t, SQL("0"), trimCanonical("0 ;"))
+	assert.Equal(t, SQL("0"), trimCanonical("0 ;;"))
+	assert.Equal(t, SQL("select 1"), trimCanonical("  select 1 ; ; "))
 }

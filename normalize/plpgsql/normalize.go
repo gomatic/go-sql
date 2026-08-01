@@ -75,8 +75,9 @@ func processToken(runes []rune, result *strings.Builder, i runeIndex, isHad hasW
 // emittedText is a fragment of canonical output appended to the result builder.
 type emittedText string
 
-// emit appends s to result. strings.Builder writes are documented never to fail,
-// so we swallow the (always-nil) error in this one spot.
+// emit appends s to result. [strings.Builder.WriteString] is documented to
+// return a nil error, so the error is swallowed in this one spot rather than
+// threaded through every caller.
 func emit(result *strings.Builder, s emittedText) {
 	_, _ = result.WriteString(string(s))
 }

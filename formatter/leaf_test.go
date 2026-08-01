@@ -31,7 +31,7 @@ func TestDeparseNodeRendersArithmetic(t *testing.T) {
 	}
 }
 
-func TestDeparseNodeReportsDeparseFailure(t *testing.T) {
+func TestRawDeparserFailureIsReportedAsErrDeparseLeaf(t *testing.T) {
 	const boom errs.Const = "boom"
 	failing := func(*pg_query.ParseResult) (string, error) { return "", boom }
 	_, err := deparseNodeWith(failing, firstTargetVal(t, "select a"))
@@ -65,7 +65,7 @@ func TestCanonicalStatementFalseWhenDeparseFails(t *testing.T) {
 	}
 }
 
-func TestCanonicalStatementFalseWhenLowerFails(t *testing.T) {
+func TestLowerFuncFailureStopsCanonicalStatement(t *testing.T) {
 	const boom errs.Const = "boom"
 	ok := func(*pg_query.ParseResult) (string, error) { return "select a", nil }
 	failing := func(sql.SQL) (sql.SQL, error) { return "", boom }

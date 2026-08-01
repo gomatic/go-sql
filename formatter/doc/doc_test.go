@@ -124,3 +124,32 @@ func TestBrokenSoftlineInContinuationLetsInnerStayFlat(t *testing.T) {
 		t.Fatalf("got %q, want %q", got, "a b\nXXXXXXXXXXXXXXXXXXXX")
 	}
 }
+
+// TestPushGroupBreaksOnAHardline names the invariant pushGroup documents: a
+// group whose child carries a hardline ALWAYS breaks, however much room is left.
+// A hardline is the caller's statement that a break is semantic — a line comment
+// ends at a newline, so flattening one would swallow the SQL that follows it into
+// the comment. Measuring the group and finding it fits must not override that.
+func TestPushGroupBreaksOnAHardline(t *testing.T) {
+	group := doc.Group(doc.Concat(doc.Text("a"), doc.Hardline(), doc.Text("b")))
+
+	got := doc.Render(group, 200)
+
+	if got != "a\nb" {
+		t.Fatalf("a hardline group must break even at width 200: got %q, want %q", got, "a\nb")
+	}
+}
+
+// TestPushGroupStaysFlatWhenItFits is the other half of pushGroup's claim —
+// "otherwise it stays flat when it fits" — without which the test above is
+// satisfied by a renderer that breaks everything unconditionally.
+func TestPushGroupStaysFlatWhenItFits(t *testing.T) {
+	group := doc.Group(doc.Concat(doc.Text("a"), doc.Line(), doc.Text("b")))
+
+	if got := doc.Render(group, 200); got != "a b" {
+		t.Fatalf("a fitting group must stay flat: got %q, want %q", got, "a b")
+	}
+	if got := doc.Render(group, 2); got != "a\nb" {
+		t.Fatalf("a group that does not fit must break: got %q, want %q", got, "a\nb")
+	}
+}
