@@ -1,6 +1,7 @@
 package sql_test
 
 import (
+	"fmt"
 	"testing"
 
 	sql "github.com/gomatic/go-sql"
@@ -67,41 +68,59 @@ func FuzzLowerKeywords(f *testing.F) {
 }
 
 // FuzzParseDeparse asserts the parse/deparse pair and the column-list sorter
-// never panic on adversarial input, and that sorting then deparsing yields valid
-// SQL whenever it yields anything. go-sql's Parse/Deparse are thin wrappers over
-// pg_query, which does not itself promise deparse output re-parses or is stable
-// (the out-of-range parameter $0 renders to the non-PostgreSQL `?`), so those
-// are deliberately not asserted here; the meaning-preserving guarantees live in
-// the formatter, normalize, and compare packages that build on this layer.
+// on adversarial input: beyond crash-freedom, the sorter is IDEMPOTENT —
+// sorting a second time changes nothing the deparser can see. go-sql's
+// Parse/Deparse are thin wrappers over pg_query, which does not itself promise
+// deparse output re-parses or is stable (the out-of-range parameter $0 renders
+// to the non-PostgreSQL `?`), so round-tripping is deliberately not asserted
+// here; the meaning-preserving guarantees live in the formatter, normalize,
+// and compare packages that build on this layer.
 func FuzzParseDeparse(f *testing.F) {
 	for _, s := range rootSeeds {
 		f.Add(s)
 	}
 	f.Fuzz(func(t *testing.T, in string) {
-		_ = t
 		tree, err := sql.Parse(sql.SQL(in))
 		if err != nil {
 			return
 		}
 		_, _ = sql.Deparse(tree)
 		sql.SortColumnLists(tree)
-		_, _ = sql.Deparse(tree)
+		once, onceErr := sql.Deparse(tree)
+		sql.SortColumnLists(tree)
+		twice, twiceErr := sql.Deparse(tree)
+		if (onceErr == nil) != (twiceErr == nil) || once != twice {
+			t.Fatalf("SortColumnLists is not idempotent for %q: %q/%v vs %q/%v", in, once, onceErr, twice, twiceErr)
+		}
 	})
 }
 
-// FuzzRootInspectors asserts the read-only inspectors never panic on arbitrary
-// input. Their meaning-preserving roles are asserted where they are consumed
-// (the formatter gate and the compare engine); here we pin crash-freedom.
+// FuzzRootInspectors asserts the read-only inspectors on arbitrary input:
+// beyond crash-freedom, each is DETERMINISTIC — the same input yields the
+// same fingerprint, the same comments, and the same JSON, every time. Their
+// meaning-preserving roles are asserted where they are consumed (the
+// formatter gate and the compare engine).
 func FuzzRootInspectors(f *testing.F) {
 	for _, s := range rootSeeds {
 		f.Add(s)
 	}
 	f.Fuzz(func(t *testing.T, in string) {
-		_ = t
-		_, _ = sql.Fingerprint(sql.SQL(in))
-		_, _ = sql.Comments(sql.SQL(in))
+		print1, err1 := sql.Fingerprint(sql.SQL(in))
+		print2, err2 := sql.Fingerprint(sql.SQL(in))
+		if print1 != print2 || (err1 == nil) != (err2 == nil) {
+			t.Fatalf("Fingerprint is not deterministic for %q", in)
+		}
+		comments1, _ := sql.Comments(sql.SQL(in))
+		comments2, _ := sql.Comments(sql.SQL(in))
+		if len(comments1) != len(comments2) {
+			t.Fatalf("Comments is not deterministic for %q", in)
+		}
 		if tree, err := sql.Parse(sql.SQL(in)); err == nil {
-			_, _ = sql.ToJSON(tree)
+			json1, jsonErr1 := sql.ToJSON(tree)
+			json2, jsonErr2 := sql.ToJSON(tree)
+			if fmt.Sprint(json1) != fmt.Sprint(json2) || (jsonErr1 == nil) != (jsonErr2 == nil) {
+				t.Fatalf("ToJSON is not deterministic for %q", in)
+			}
 		}
 	})
 }
